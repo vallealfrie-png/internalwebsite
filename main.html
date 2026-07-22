@@ -1,438 +1,490 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PHMC-LP | Internal Communications Portal</title>
-  
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Font Awesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  
-  <!-- Google Fonts: Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-          },
-          colors: {
-            phmc: {
-              emerald: '#006B54',
-              mint: '#E8F5F1',
-              dark: '#0F172A',
-              slate: '#1E293B',
-              accent: '#0284C7'
-            }
-          }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHMC Internal Website - Main Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --neon: #0ef;
+            --neon-hover: #0bc2cc;
+            --bg-dark: #081b29;
+            --panel-bg: rgba(8, 27, 41, 0.85);
+            --card-bg: rgba(16, 42, 66, 0.6);
+            --text-light: #ededed;
+            --text-muted: #a2bccc;
+            --danger: #ff4d4d;
+            --danger-hover: #cc3b3b;
+            --border-glow: rgba(0, 238, 255, 0.25);
         }
-      }
-    }
-  </script>
 
-  <style>
-    /* Smooth transitions for carousel slides */
-    .carousel-item {
-      transition: opacity 0.8s ease-in-out;
-    }
-    /* Glassmorphism card effect */
-    .glass-card {
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-  </style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Bar */
+        header {
+            width: 100%;
+            padding: 15px 40px;
+            background: var(--panel-bg);
+            border-bottom: 2px solid var(--neon);
+            box-shadow: 0 0 15px var(--neon);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand img {
+            height: 45px;
+            filter: drop-shadow(0 0 5px var(--neon));
+        }
+
+        .brand h1 {
+            font-size: 1.3rem;
+            color: var(--text-light);
+            text-shadow: 0 0 5px var(--neon);
+            letter-spacing: 0.5px;
+        }
+
+        .user-nav {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-info {
+            text-align: right;
+            font-size: 0.85rem;
+        }
+
+        .user-info .user-name {
+            font-weight: 700;
+            color: var(--neon);
+            display: block;
+        }
+
+        .user-info .user-dept {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .logout-btn {
+            padding: 8px 18px;
+            background: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 0 8px rgba(255, 77, 77, 0.3);
+        }
+
+        .logout-btn:hover {
+            background: var(--danger);
+            color: #fff;
+            box-shadow: 0 0 15px var(--danger);
+        }
+
+        /* Container Layout */
+        main {
+            flex: 1;
+            padding: 30px 40px;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        /* Welcome Banner & Search */
+        .hero-banner {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 12px;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 238, 255, 0.08);
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .hero-text h2 {
+            font-size: 1.6rem;
+            color: var(--neon);
+            margin-bottom: 5px;
+            text-shadow: 0 0 5px var(--neon);
+        }
+
+        .hero-text p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 10px 14px;
+            background: rgba(8, 27, 41, 0.9);
+            border: 1px solid var(--border-glow);
+            border-radius: 6px;
+            color: var(--text-light);
+            outline: none;
+            font-size: 0.9rem;
+        }
+
+        .search-box input:focus {
+            border-color: var(--neon);
+            box-shadow: 0 0 8px var(--neon);
+        }
+
+        .search-box button {
+            padding: 10px 20px;
+            background: var(--neon);
+            color: var(--bg-dark);
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .search-box button:hover {
+            background: var(--neon-hover);
+            box-shadow: 0 0 10px var(--neon);
+        }
+
+        /* Metrics Quick Row */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--neon);
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--neon);
+        }
+
+        /* Main Section Grid */
+        .section-title {
+            font-size: 1.1rem;
+            color: var(--text-light);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 18px;
+            background: var(--neon);
+            box-shadow: 0 0 8px var(--neon);
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .app-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 15px;
+            transition: 0.3s;
+        }
+
+        .app-card:hover {
+            border-color: var(--neon);
+            box-shadow: 0 0 15px rgba(0, 238, 255, 0.15);
+        }
+
+        .app-card h3 {
+            color: var(--neon);
+            font-size: 1.1rem;
+        }
+
+        .app-card p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .app-card .card-btn {
+            padding: 8px 14px;
+            background: transparent;
+            border: 1px solid var(--neon);
+            color: var(--neon);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .app-card .card-btn:hover {
+            background: var(--neon);
+            color: var(--bg-dark);
+            box-shadow: 0 0 10px var(--neon);
+        }
+
+        /* Activity Table Section */
+        .table-container {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(0, 238, 255, 0.1);
+        }
+
+        th {
+            color: var(--neon);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        tr:hover td {
+            background: rgba(0, 238, 255, 0.03);
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; border: 1px solid #ffc107; }
+        .badge-completed { background: rgba(40, 167, 69, 0.2); color: #28a745; border: 1px solid #28a745; }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-phmc-emerald selection:text-white">
+<body>
 
-  <!-- Top Announcement Bar -->
-  <div class="bg-phmc-emerald text-white text-xs md:text-sm py-2 px-4">
-    <div class="max-w-7xl mx-auto flex justify-between items-center">
-      <div class="flex items-center space-x-2">
-        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span class="font-medium">Internal Network Status: <span class="font-semibold text-emerald-200">All Systems Operational</span></span>
-      </div>
-      <div class="hidden md:flex space-x-6 text-xs text-emerald-100">
-        <span><i class="fa-solid fa-hospital-user mr-1"></i> Staff Directory</span>
-        <span><i class="fa-solid fa-headset mr-1"></i> IT Service Desk (Ext. 8000)</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Header / Navigation -->
-  <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-20">
-        
-        <!-- Brand Logo -->
-        <div class="flex items-center space-x-3">
-          <img src="https://i.imgur.com/W4iMgls.jpeg" alt="PHMC Logo" class="h-14 w-auto rounded-lg shadow-sm border border-slate-100" />
-          <div class="hidden sm:block">
-            <h1 class="text-lg font-bold text-slate-900 leading-tight">Perpetual Help Medical Center</h1>
-            <p class="text-xs font-semibold text-phmc-emerald tracking-wider uppercase">Las Piñas — Business Unit Portal</p>
-          </div>
+    <header>
+        <div class="brand">
+            <img src="https://i.imgur.com/VbZKWAf.png" alt="PHMC Logo">
+            <h1>PHMC Internal Portal</h1>
         </div>
 
-        <!-- Navigation Links -->
-        <nav class="hidden lg:flex items-center space-x-8 text-sm font-medium text-slate-600">
-          <a href="#overview" class="hover:text-phmc-emerald transition-colors">Overview</a>
-          <a href="#units" class="hover:text-phmc-emerald transition-colors">Business Units</a>
-          <a href="#announcements" class="hover:text-phmc-emerald transition-colors">Announcements</a>
-          <a href="#resources" class="hover:text-phmc-emerald transition-colors">Quick Links</a>
-        </nav>
-
-        <!-- Right Side Actions -->
-        <div class="flex items-center space-x-4">
-          <a href="login.html" class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-phmc-emerald border border-phmc-emerald rounded-xl hover:bg-phmc-mint transition-colors">
-            <i class="fa-solid fa-right-to-bracket mr-2"></i> Staff Login
-          </a>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- Hero Section with Image Carousel -->
-  <section class="relative bg-slate-900 overflow-hidden py-8 md:py-12">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        
-        <!-- Carousel Side (Left/Top) -->
-        <div class="lg:col-span-7 relative">
-          <div class="relative h-[280px] sm:h-[380px] md:h-[440px] w-full rounded-2xl overflow-hidden shadow-2xl border border-slate-700/50">
-            
-            <!-- Slides -->
-            <div id="carousel-slides" class="relative w-full h-full">
-              <div class="carousel-item absolute inset-0 opacity-100">
-                <img src="https://i.imgur.com/iwqDne0.png" alt="PHMC Facility 1" class="w-full h-full object-cover">
-              </div>
-              <div class="carousel-item absolute inset-0 opacity-0">
-                <img src="https://i.imgur.com/SK9VO2H.png" alt="PHMC Facility 2" class="w-full h-full object-cover">
-              </div>
-              <div class="carousel-item absolute inset-0 opacity-0">
-                <img src="https://i.imgur.com/4SKDvm4.png" alt="PHMC Facility 3" class="w-full h-full object-cover">
-              </div>
-              <div class="carousel-item absolute inset-0 opacity-0">
-                <img src="https://i.imgur.com/ReKTBM0.png" alt="PHMC Facility 4" class="w-full h-full object-cover">
-              </div>
+        <div class="user-nav">
+            <div class="user-info">
+                <span class="user-name" id="display-user-name">Loading...</span>
+                <span class="user-dept" id="display-user-dept">Checking department...</span>
             </div>
+            <button class="logout-btn" onclick="handleLogout()">Staff Log Out</button>
+        </div>
+    </header>
 
-            <!-- Overlay Gradient -->
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
-
-            <!-- Controls -->
-            <button id="prevBtn" class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white backdrop-blur-md flex items-center justify-center transition">
-              <i class="fa-solid fa-chevron-left"></i>
-            </button>
-            <button id="nextBtn" class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white backdrop-blur-md flex items-center justify-center transition">
-              <i class="fa-solid fa-chevron-right"></i>
-            </button>
-
-            <!-- Indicators -->
-            <div id="carousel-indicators" class="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2 z-10">
-              <button class="w-8 h-2 rounded-full bg-white transition-all"></button>
-              <button class="w-2 h-2 rounded-full bg-white/50 transition-all"></button>
-              <button class="w-2 h-2 rounded-full bg-white/50 transition-all"></button>
-              <button class="w-2 h-2 rounded-full bg-white/50 transition-all"></button>
+    <main>
+        <!-- Hero Banner -->
+        <section class="hero-banner">
+            <div class="hero-text">
+                <h2 id="greeting-header">Welcome to Main Portal</h2>
+                <p>Centralized internal tools & document tracking hub for PHMC staff.</p>
             </div>
-          </div>
-        </div>
-
-        <!-- Hero Content Side (Right) -->
-        <div class="lg:col-span-5 text-white space-y-6">
-          <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
-            <i class="fa-solid fa-network-wired"></i>
-            <span>Inter-Unit Communication Hub</span>
-          </div>
-
-          <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight">
-            Connecting Departments, <span class="text-emerald-400">Enhancing Care.</span>
-          </h2>
-
-          <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
-            Welcome to the centralized internal portal for Perpetual Help Medical Center – Las Piñas. Seamlessly share updates, coordinate clinical & administrative workflows, and access inter-departmental tools.
-          </p>
-
-          <div class="pt-2 flex flex-wrap gap-3">
-            <a href="#units" class="px-5 py-3 rounded-xl bg-phmc-emerald hover:bg-emerald-600 text-white font-semibold text-sm shadow-lg shadow-emerald-900/30 transition-all flex items-center">
-              <span>Browse Units</span>
-              <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
-            </a>
-            <a href="#announcements" class="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm transition-all">
-              Latest Advisories
-            </a>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- Quick Access Hub -->
-  <section class="py-12 bg-white border-b border-slate-200">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-        
-        <div class="p-5 rounded-2xl bg-slate-50 hover:bg-phmc-mint/50 border border-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
-          <div class="w-12 h-12 rounded-xl bg-emerald-100 text-phmc-emerald flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
-            <i class="fa-solid fa-hospital-user"></i>
-          </div>
-          <h3 class="font-bold text-slate-900 text-base mb-1">Nursing & Medical</h3>
-          <p class="text-xs text-slate-500">Inpatient ward protocols, duty rosters, & clinical handovers.</p>
-        </div>
-
-        <div class="p-5 rounded-2xl bg-slate-50 hover:bg-phmc-mint/50 border border-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
-          <div class="w-12 h-12 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
-            <i class="fa-solid fa-microscope"></i>
-          </div>
-          <h3 class="font-bold text-slate-900 text-base mb-1">Ancillary & Lab</h3>
-          <p class="text-xs text-slate-500">Radiology, Pathology, & Pharmacy unit requests.</p>
-        </div>
-
-        <div class="p-5 rounded-2xl bg-slate-50 hover:bg-phmc-mint/50 border border-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
-          <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
-            <i class="fa-solid fa-file-invoice-dollar"></i>
-          </div>
-          <h3 class="font-bold text-slate-900 text-base mb-1">Finance & Billing</h3>
-          <p class="text-xs text-slate-500">HMO clearance, SOA inquiries, & revenue metrics.</p>
-        </div>
-
-        <div class="p-5 rounded-2xl bg-slate-50 hover:bg-phmc-mint/50 border border-slate-200/80 transition-all duration-300 hover:-translate-y-1 group">
-          <div class="w-12 h-12 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
-            <i class="fa-solid fa-screwdriver-wrench"></i>
-          </div>
-          <h3 class="font-bold text-slate-900 text-base mb-1">Operations & IT</h3>
-          <p class="text-xs text-slate-500">Facility maintenance, HIS tickets, & asset requests.</p>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- Business Units Matrix Section -->
-  <section id="units" class="py-16 bg-slate-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      
-      <div class="text-center max-w-2xl mx-auto mb-12">
-        <h2 class="text-xs font-bold text-phmc-emerald uppercase tracking-wider mb-2">Internal Directory</h2>
-        <p class="text-3xl font-extrabold text-slate-900">Hospital Business Units</p>
-        <p class="text-slate-600 text-sm mt-2">Select a department to view operational updates, key personnel, or log inter-unit requests.</p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        <!-- Unit Card 1 -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div class="flex items-center justify-between mb-4">
-            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Clinical Services</span>
-            <span class="text-xs text-slate-400"><i class="fa-solid fa-users mr-1"></i> 142 Staff</span>
-          </div>
-          <h3 class="text-xl font-bold text-slate-900 mb-2">Emergency Department</h3>
-          <p class="text-slate-600 text-sm mb-6">Triage coordination, critical care handovers, and trauma bay status tracking.</p>
-          <button class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-phmc-emerald hover:text-white text-slate-700 font-semibold text-sm transition-colors flex items-center justify-center">
-            <span>Access ED Portal</span>
-            <i class="fa-solid fa-arrow-right-long ml-2 text-xs"></i>
-          </button>
-        </div>
-
-        <!-- Unit Card 2 -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div class="flex items-center justify-between mb-4">
-            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800">Diagnostics</span>
-            <span class="text-xs text-slate-400"><i class="fa-solid fa-users mr-1"></i> 58 Staff</span>
-          </div>
-          <h3 class="text-xl font-bold text-slate-900 mb-2">Radiology & Imaging</h3>
-          <p class="text-slate-600 text-sm mb-6">CT, MRI, X-Ray diagnostic schedules, and STAT report dispatch channels.</p>
-          <button class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-phmc-emerald hover:text-white text-slate-700 font-semibold text-sm transition-colors flex items-center justify-center">
-            <span>Access Radiology</span>
-            <i class="fa-solid fa-arrow-right-long ml-2 text-xs"></i>
-          </button>
-        </div>
-
-        <!-- Unit Card 3 -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div class="flex items-center justify-between mb-4">
-            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">Administration</span>
-            <span class="text-xs text-slate-400"><i class="fa-solid fa-users mr-1"></i> 34 Staff</span>
-          </div>
-          <h3 class="text-xl font-bold text-slate-900 mb-2">Health Information (HIM)</h3>
-          <p class="text-slate-600 text-sm mb-6">Medical records requests, ICD coding updates, and chart completion notices.</p>
-          <button class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-phmc-emerald hover:text-white text-slate-700 font-semibold text-sm transition-colors flex items-center justify-center">
-            <span>Access HIM Portal</span>
-            <i class="fa-solid fa-arrow-right-long ml-2 text-xs"></i>
-          </button>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- Recent Inter-Departmental Bulletins -->
-  <section id="announcements" class="py-16 bg-white border-t border-slate-200">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex flex-col md:flex-row md:items-end justify-between mb-10">
-        <div>
-          <h2 class="text-xs font-bold text-phmc-emerald uppercase tracking-wider mb-2">Hospital Feed</h2>
-          <p class="text-3xl font-extrabold text-slate-900">Latest Inter-Unit Advisories</p>
-        </div>
-        <a href="#" class="mt-4 md:mt-0 text-sm font-semibold text-phmc-emerald hover:underline flex items-center">
-          View All Bulletins <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
-        </a>
-      </div>
-
-      <div class="space-y-4">
-        
-        <!-- Bulletin Item 1 -->
-        <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div class="flex items-start space-x-4">
-            <div class="p-3 bg-emerald-100 text-phmc-emerald rounded-xl flex-shrink-0">
-              <i class="fa-solid fa-circle-exclamation text-lg"></i>
+            <div class="search-box">
+                <input type="text" id="portal-search" placeholder="Search reference, document, or module...">
+                <button type="button">Search</button>
             </div>
-            <div>
-              <div class="flex items-center space-x-2">
-                <span class="text-xs font-bold text-slate-900">IT & HIS Unit</span>
-                <span class="text-xs text-slate-400">• 2 hours ago</span>
-              </div>
-              <h4 class="text-base font-bold text-slate-900 mt-0.5">Scheduled HIS Maintenance Window</h4>
-              <p class="text-xs text-slate-600 mt-1">Hospital Information System will undergo routine database optimization on Saturday at 01:00 AM - 03:00 AM.</p>
+        </section>
+
+        <!-- Quick Metrics -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <span class="label">Active Routing Logs</span>
+                <span class="value" id="stat-active-logs">24</span>
             </div>
-          </div>
-          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 whitespace-nowrap">High Priority</span>
-        </div>
-
-        <!-- Bulletin Item 2 -->
-        <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div class="flex items-start space-x-4">
-            <div class="p-3 bg-sky-100 text-sky-600 rounded-xl flex-shrink-0">
-              <i class="fa-solid fa-notes-medical text-lg"></i>
+            <div class="stat-card">
+                <span class="label">Pending Approvals</span>
+                <span class="value" id="stat-pending">8</span>
             </div>
-            <div>
-              <div class="flex items-center space-x-2">
-                <span class="text-xs font-bold text-slate-900">Pharmacy Unit</span>
-                <span class="text-xs text-slate-400">• 5 hours ago</span>
-              </div>
-              <h4 class="text-base font-bold text-slate-900 mt-0.5">Updated Formulary Stock List Released</h4>
-              <p class="text-xs text-slate-600 mt-1">Revised critical care drug availability sheet has been uploaded for ward reference.</p>
+            <div class="stat-card">
+                <span class="label">Completed Today</span>
+                <span class="value" id="stat-completed">15</span>
             </div>
-          </div>
-          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-200 text-slate-700 whitespace-nowrap">Routine</span>
-        </div>
+            <div class="stat-card">
+                <span class="label">Department Members</span>
+                <span class="value" id="stat-members">6</span>
+            </div>
+        </section>
 
-      </div>
-    </div>
-  </section>
+        <!-- System Apps / Modules -->
+        <section>
+            <h3 class="section-title">Internal Modules</h3>
+            <div class="apps-grid">
+                <div class="app-card">
+                    <div>
+                        <h3>Document Tracker</h3>
+                        <p>Track, route, and manage inter-departmental files and official communications.</p>
+                    </div>
+                    <a href="#" class="card-btn">Open Module</a>
+                </div>
 
-  <!-- Footer -->
-  <footer class="bg-slate-900 text-slate-400 py-12 border-t border-slate-800 text-xs">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-      <div>
-        <img src="https://i.imgur.com/W4iMgls.jpeg" alt="PHMC Logo" class="h-10 w-auto rounded bg-white p-1 mb-4" />
-        <p class="leading-relaxed">Perpetual Help Medical Center – Las Piñas Internal Communications Network.</p>
-      </div>
-      <div>
-        <h5 class="text-white font-semibold text-sm mb-3">Quick Navigation</h5>
-        <ul class="space-y-2">
-          <li><a href="#" class="hover:text-white transition-colors">Staff Login</a></li>
-          <li><a href="#" class="hover:text-white transition-colors">HIS Helpdesk Ticket</a></li>
-          <li><a href="#" class="hover:text-white transition-colors">Emergency Extensions Directory</a></li>
-        </ul>
-      </div>
-      <div>
-        <h5 class="text-white font-semibold text-sm mb-3">Contact Desk</h5>
-        <p>Alabang–Zapote Rd, Pamplona Tres,<br>Las Piñas, 1704 Metro Manila</p>
-        <p class="mt-2">Ext: 8000 (IT) | Ext: 1001 (Admin)</p>
-      </div>
-      <div>
-        <h5 class="text-white font-semibold text-sm mb-3">Security Notice</h5>
-        <p class="leading-relaxed">Authorized access only. All activities within this internal network are monitored for patient data protection and compliance.</p>
-      </div>
-    </div>
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-800 pt-6 text-center text-slate-500">
-      <p>&copy; 2026 Perpetual Help Medical Center Las Piñas. All rights reserved.</p>
-    </div>
-  </footer>
+                <div class="app-card">
+                    <div>
+                        <h3>Staff Portal</h3>
+                        <p>Access department directories, announcements, and internal guidelines.</p>
+                    </div>
+                    <a href="#" class="card-btn">Open Portal</a>
+                </div>
 
-  <!-- JavaScript Carousel Logic -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const slides = document.querySelectorAll('#carousel-slides .carousel-item');
-      const indicators = document.querySelectorAll('#carousel-indicators button');
-      const prevBtn = document.getElementById('prevBtn');
-      const nextBtn = document.getElementById('nextBtn');
-      
-      let currentIndex = 0;
-      let slideInterval;
+                <div class="app-card">
+                    <div>
+                        <h3>Reports & Analytics</h3>
+                        <p>Generate utilization summaries and department activity metrics.</p>
+                    </div>
+                    <a href="#" class="card-btn">View Reports</a>
+                </div>
+            </div>
+        </section>
 
-      function showSlide(index) {
-        slides.forEach((slide, i) => {
-          if (i === index) {
-            slide.classList.remove('opacity-0');
-            slide.classList.add('opacity-100');
-          } else {
-            slide.classList.remove('opacity-100');
-            slide.classList.add('opacity-0');
-          }
-        });
+        <!-- Recent Routing Activity -->
+        <section>
+            <h3 class="section-title">Recent Activity Logs</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ref Code</th>
+                            <th>Document Title</th>
+                            <th>Origin Dept</th>
+                            <th>Target Dept</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activity-logs">
+                        <tr>
+                            <td>#DOC-2026-0891</td>
+                            <td>Budget Requisition Request</td>
+                            <td>Finance</td>
+                            <td>Purchasing</td>
+                            <td><span class="badge badge-pending">Pending</span></td>
+                        </tr>
+                        <tr>
+                            <td>#DOC-2026-0890</td>
+                            <td>Nursing Staffing Allocation Q3</td>
+                            <td>Nursing Office</td>
+                            <td>Human Resources</td>
+                            <td><span class="badge badge-completed">Completed</span></td>
+                        </tr>
+                        <tr>
+                            <td>#DOC-2026-0888</td>
+                            <td>IT Work Order Request - Server Upgrade</td>
+                            <td>IT Department</td>
+                            <td>Finance</td>
+                            <td><span class="badge badge-completed">Completed</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
 
-        // Update Indicators
-        indicators.forEach((indicator, i) => {
-          if (i === index) {
-            indicator.className = 'w-8 h-2 rounded-full bg-white transition-all';
-          } else {
-            indicator.className = 'w-2 h-2 rounded-full bg-white/50 transition-all';
-          }
-        });
+<script>
+    const _supabase = supabase.createClient(
+        'https://kiknpyyxrslvjhdskshx.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpa25weXl4cnNsdmpoZHNrc2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjI1OTIsImV4cCI6MjEwMDI5ODU5Mn0.aBcVHHmLzrL6X8ECMu4IVA84CuUlqgn04q3MfEL8m0U'
+    );
 
-        currentIndex = index;
-      }
+    document.addEventListener('DOMContentLoaded', async () => {
+        const { data: { session }, error } = await _supabase.auth.getSession();
 
-      function nextSlide() {
-        let nextIndex = (currentIndex + 1) % slides.length;
-        showSlide(nextIndex);
-      }
+        if (!session || error) {
+            window.location.href = 'index.html';
+            return;
+        }
 
-      function prevSlide() {
-        let prevIndex = (currentIndex - 1 + slides.length) % slides.length;
-        showSlide(prevIndex);
-      }
+        const user = session.user;
+        const metadata = user.user_metadata || {};
 
-      function startTimer() {
-        slideInterval = setInterval(nextSlide, 4000);
-      }
+        const userName = metadata.name || user.email.split('@')[0];
+        const userDept = metadata.department ? `${metadata.department} (${metadata.team || 'General'})` : 'Internal Staff';
 
-      function resetTimer() {
-        clearInterval(slideInterval);
-        startTimer();
-      }
-
-      // Event Listeners
-      nextBtn.addEventListener('click', () => {
-        nextSlide();
-        resetTimer();
-      });
-
-      prevBtn.addEventListener('click', () => {
-        prevSlide();
-        resetTimer();
-      });
-
-      indicators.forEach((btn, idx) => {
-        btn.addEventListener('click', () => {
-          showSlide(idx);
-          resetTimer();
-        });
-      });
-
-      // Initialize
-      startTimer();
+        document.getElementById('display-user-name').innerText = userName;
+        document.getElementById('display-user-dept').innerText = userDept;
+        document.getElementById('greeting-header').innerText = `Welcome back, ${userName}!`;
     });
-  </script>
+
+    async function handleLogout() {
+        const { error } = await _supabase.auth.signOut();
+        if (error) {
+            console.error('Logout failed:', error.message);
+        }
+        window.location.href = 'index.html';
+    }
+</script>
 </body>
 </html>

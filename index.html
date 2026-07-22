@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHMC Document Control - Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --neon: #0ef;
+            --neon-hover: #0bc2cc;
+            --bg-dark: #081b29;
+            --panel-bg: rgba(8, 27, 41, 0.85);
+            --text-light: #ededed;
+            --error: #ff4d4d;
+            --success: #28a745;
+            --github: #24292e;
+            --google: #4285f4;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        
+        body { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            background: var(--bg-dark); 
+            padding: 20px;
+            color: var(--text-light);
+            overflow-x: hidden;
+        }
+
+        /* Video Container Replication */
+        .wrapper {
+            position: relative;
+            width: 850px;
+            height: 550px;
+            background: transparent;
+            border: 2px solid var(--neon);
+            box-shadow: 0 0 25px var(--neon);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        /* Global Alert Box Overlaying Container top */
+        .alert-box {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: none;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .alert-error { background: rgba(248, 215, 218, 0.9); color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-success { background: rgba(212, 237, 218, 0.9); color: #155724; border: 1px solid #c3e6cb; }
+
+        /* Sliding Form Container Mechanics */
+        .form-box {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 40px;
+            background: var(--panel-bg);
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+        }
+
+        .form-box.login { left: 0; z-index: 1; opacity: 1; }
+        .wrapper.active .form-box.login { transform: translateX(-100%); opacity: 0; z-index: 0; }
+
+        .form-box.register { right: 0; transform: translateX(100%); opacity: 0; z-index: 0; }
+        .wrapper.active .form-box.register { transform: translateX(0); opacity: 1; z-index: 1; }
+
+        /* Special States: Forgot & Reset Overlay Panels */
+        .form-box.forgot, .form-box.reset {
+            left: 0;
+            width: 50%;
+            transform: translateX(-100%);
+            opacity: 0;
+            z-index: 0;
+        }
+        .wrapper.forgot-active .form-box.forgot { transform: translateX(0); opacity: 1; z-index: 2; }
+        .wrapper.forgot-active .form-box.login { transform: translateX(100%); opacity: 0; }
+        .wrapper.reset-active .form-box.reset { transform: translateX(0); opacity: 1; z-index: 2; }
+        .wrapper.reset-active .form-box.login { transform: translateX(100%); opacity: 0; }
+
+        /* Typography & Headings */
+        h2 { font-size: 2rem; text-align: center; margin-bottom: 20px; color: var(--text-light); text-shadow: 0 0 5px var(--neon); }
+        
+        .form-group { position: relative; width: 100%; margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: #a2bccc; text-transform: uppercase; margin-bottom: 5px; }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: transparent;
+            border: 1px solid rgba(0, 238, 255, 0.3);
+            border-radius: 6px;
+            outline: none;
+            font-size: 0.95rem;
+            color: var(--text-light);
+            transition: 0.3s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--neon);
+            box-shadow: 0 0 8px var(--neon);
+        }
+        .form-group select option { background: var(--bg-dark); color: var(--text-light); }
+
+        .forgot-link { text-align: right; margin: -5px 0 15px; font-size: 0.85rem; }
+        .forgot-link span { color: var(--neon); cursor: pointer; text-decoration: none; }
+        .forgot-link span:hover { text-decoration: underline; }
+
+        /* Buttons */
+        .auth-btn {
+            width: 100%;
+            height: 45px;
+            background: var(--neon);
+            border: none;
+            outline: none;
+            border-radius: 6px;
+            box-shadow: 0 0 10px var(--neon);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--bg-dark);
+            transition: 0.3s;
+        }
+        .auth-btn:hover { background: var(--neon-hover); box-shadow: 0 0 20px var(--neon); }
+
+        .divider { display: flex; align-items: center; text-align: center; margin: 15px 0; color: #888; font-size: 0.8rem; }
+        .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .divider:not(:empty)::before { margin-right: .5em; }
+        .divider:not(:empty)::after { margin-left: .5em; }
+
+        .social-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .social-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;
+            cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: white;
+        }
+        .social-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--neon); }
+
+        .toggle-link { font-size: 0.85rem; text-align: center; margin-top: 20px; color: #a2bccc; }
+        .toggle-link span { color: var(--neon); font-weight: 600; cursor: pointer; }
+        .toggle-link span:hover { text-decoration: underline; }
+
+        /* Sliding Info Accent Overlay Panels */
+        .info-content {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 40px;
+            z-index: 2;
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+            text-align: center;
+        }
+
+        .info-content.left { right: 0; transform: translateX(0); opacity: 1; }
+        .wrapper.active .info-content.left { transform: translateX(100%); opacity: 0; pointer-events: none; }
+
+        .info-content.right { left: 0; transform: translateX(-100%); opacity: 0; pointer-events: none; }
+        .wrapper.active .info-content.right { transform: translateX(0); opacity: 1; pointer-events: auto; }
+
+        /* Hide text overlays during password loops */
+        .wrapper.forgot-active .info-content, .wrapper.reset-active .info-content { opacity: 0 !important; pointer-events: none; }
+
+        .info-content img { height: 60px; margin: 0 auto 15px; filter: drop-shadow(0 0 5px var(--neon)); }
+        .info-content h2 { color: var(--text-light); text-shadow: 0 0 10px var(--neon); }
+        .info-content p { font-size: 0.9rem; color: #a2bccc; line-height: 1.5; margin-top: 10px; }
+
+        /* Sliding Diagonal Colored Panel Layer */
+        .toggle-panel {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(135deg, #001f3f, #081b29);
+            border-left: 2px solid var(--neon);
+            box-shadow: -10px 0 25px rgba(0, 238, 255, 0.2);
+            transition: transform 0.6s ease-in-out;
+            z-index: 2;
+            pointer-events: none;
+        }
+        .wrapper.active .toggle-panel { transform: translateX(-100%); border-left: none; border-right: 2px solid var(--neon); box-shadow: 10px 0 25px rgba(0, 238, 255, 0.2); }
+        
+        /* Expand background cover when in special full-bleed password tasks */
+        .wrapper.forgot-active .toggle-panel, .wrapper.reset-active .toggle-panel { transform: translateX(0) scaleX(2); left: 0; }
+    </style>
+</head>
+<body>
+
+    <div id="alert-msg" class="alert-box"></div>
+
+    <div class="wrapper" id="main-wrapper">
+        
+        <!-- SLIDING DIAGONAL VISUAL PARTITION -->
+        <div class="toggle-panel"></div>
+
+        <!-- VISUAL SIDEBARS (TEXT & LOGOS) -->
+        <div class="info-content left">
+            <img src="https://i.imgur.com/VbZKWAf.png" alt="PHMC Logo">
+            <h2>WELCOME BACK!</h2>
+            <p>We're happy to have you back with us. Log in to access the system and manage your active routing logs.</p>
+        </div>
+
+        <div class="info-content right">
+            <img src="https://i.imgur.com/VbZKWAf.png" alt="PHMC Logo">
+            <h2>JOIN THE PORTAL</h2>
+            <p>Establish your automated documentation track. Setup your department assignment profile to continue.</p>
+        </div>
+
+        <!-- LOGIN PANEL FORM -->
+        <div class="form-box login">
+            <h2>Login</h2>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Corporate Email</label>
+                    <input type="email" id="login-email" required placeholder="name@perpetualhelp.com.ph">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••">
+                </div>
+                <div class="forgot-link">
+                    <span onclick="toggleView('forgot')">Forgot Password?</span>
+                </div>
+                <button type="submit" class="auth-btn">Sign In</button>
+            </form>
+
+            <div class="divider">or continue with</div>
+            <div class="social-grid">
+                <button class="social-btn" onclick="handleSocialLogin('google')">Google</button>
+                <button class="social-btn" onclick="handleSocialLogin('github')">GitHub</button>
+            </div>
+            <div class="toggle-link">
+                Don't have an account? <span onclick="toggleView('register')">Sign Up</span>
+            </div>
+        </div>
+
+        <!-- SIGN UP PANEL FORM -->
+        <div class="form-box register">
+            <h2>Sign Up</h2>
+            <form id="register-form" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="reg-name" required placeholder="John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Corporate Email</label>
+                    <input type="email" id="reg-email" required placeholder="yourname@perpetualhelp.com.ph">
+                </div>
+                <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                    <div class="form-group">
+                        <label>Department</label>
+                        <select id="reg-dept" required>
+                            <option value="" disabled selected>Select</option>
+                            <option value="Medical Records">Medical Records</option>
+                            <option value="Nursing Office">Nursing Office</option>
+                            <option value="Human Resources">Human Resources</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Purchasing">Purchasing</option>
+                            <option value="IT Department">IT Department</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Team / Section</label>
+                        <input type="text" id="reg-team" placeholder="e.g. Billing">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="reg-password" required minlength="6" placeholder="Min 6 characters">
+                </div>
+                <button type="submit" class="auth-btn">Register Profile</button>
+            </form>
+            <div class="toggle-link">
+                Already have an account? <span onclick="toggleView('login')">Login</span>
+            </div>
+        </div>
+
+        <!-- FORGOT PASSWORD PANEL FORM -->
+        <div class="form-box forgot">
+            <h2>Reset Password</h2>
+            <form id="forgot-form" onsubmit="handleForgotPassword(event)">
+                <div class="form-group">
+                    <label>Registered Email Address</label>
+                    <input type="email" id="forgot-email" required placeholder="name@perpetualhelp.com.ph">
+                </div>
+                <button type="submit" class="auth-btn">Send Recovery Link</button>
+            </form>
+            <div class="toggle-link">
+                Back to <span onclick="toggleView('login')">Sign In</span>
+            </div>
+        </div>
+
+        <!-- PASSWORD RESET MODIFIER FORM -->
+        <div class="form-box reset">
+            <h2>New Password</h2>
+            <form id="reset-form" onsubmit="handleUpdatePassword(event)">
+                <div class="form-group">
+                    <label>Enter New Password</label>
+                    <input type="password" id="reset-password" required minlength="6" placeholder="Minimum 6 characters">
+                </div>
+                <button type="submit" class="auth-btn">Update Password</button>
+            </form>
+        </div>
+
+    </div>
+
+<script>
+    const _supabase = supabase.createClient('https://kiknpyyxrslvjhdskshx.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpa25weXl4cnNsdmpoZHNrc2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjI1OTIsImV4cCI6MjEwMDI5ODU5Mn0.aBcVHHmLzrL6X8ECMu4IVA84CuUlqgn04q3MfEL8m0U');
+
+    const wrapper = document.getElementById('main-wrapper');
+
+    function showAlert(message, type = 'error') {
+        const alertBox = document.getElementById('alert-msg');
+        alertBox.innerText = message;
+        alertBox.className = `alert-box alert-${type}`;
+        alertBox.style.display = 'block';
+        setTimeout(() => alertBox.style.display = 'none', 4000);
+    }
+
+    function clearAlert() {
+        document.getElementById('alert-msg').style.display = 'none';
+    }
+
+    // Handles State Management & CSS Sliding Switch Triggers
+    function toggleView(view) {
+        clearAlert();
+        wrapper.classList.remove('active', 'forgot-active', 'reset-active');
+
+        if (view === 'register') {
+            wrapper.classList.add('active');
+        } else if (view === 'forgot') {
+            wrapper.classList.add('forgot-active');
+        } else if (view === 'reset') {
+            wrapper.classList.add('reset-active');
+        }
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        clearAlert();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
+        const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            showAlert(error.message, 'error');
+        } else {
+            showAlert("Sign in successful! Redirecting...", "success");
+            setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
+        }
+    }
+
+    async function handleSocialLogin(provider) {
+        clearAlert();
+        const { data, error } = await _supabase.auth.signInWithOAuth({
+            provider: provider,
+            options: { redirectTo: 'https://vallealfrie-png.github.io/Document-Tracker/dashboard.html' }
+        });
+        if (error) showAlert(error.message, 'error');
+    }
+
+    async function handleRegister(e) {
+        e.preventDefault();
+        clearAlert();
+        const name = document.getElementById('reg-name').value;
+        const email = document.getElementById('reg-email').value;
+        const department = document.getElementById('reg-dept').value;
+        const team = document.getElementById('reg-team').value || 'General';
+        const password = document.getElementById('reg-password').value;
+
+        const { data, error } = await _supabase.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+                emailRedirectTo: 'https://vallealfrie-png.github.io/Document-Tracker/',
+                data: { name, department, team }
+            }
+        });
+
+        if (error) {
+            showAlert(error.message, 'error');
+        } else {
+            showAlert("Registration complete profile initialized!", "success");
+            document.getElementById('register-form').reset();
+            setTimeout(() => { toggleView('login'); }, 2000);
+        }
+    }
+
+    async function handleForgotPassword(e) {
+        e.preventDefault();
+        clearAlert();
+        const email = document.getElementById('forgot-email').value;
+
+        const { data, error } = await _supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'https://vallealfrie-png.github.io/Document-Tracker/?view=reset',
+        });
+
+        if (error) {
+            showAlert(error.message, 'error');
+        } else {
+            showAlert("Recovery code link dispatched. Check corporate inbox.", "success");
+            document.getElementById('forgot-form').reset();
+        }
+    }
+
+    async function handleUpdatePassword(e) {
+        e.preventDefault();
+        clearAlert();
+        const newPassword = document.getElementById('reset-password').value;
+
+        const { data, error } = await _supabase.auth.updateUser({ password: newPassword });
+
+        if (error) {
+            showAlert(error.message, 'error');
+        } else {
+            showAlert("Password updated! Redirecting to credentials entry...", "success");
+            document.getElementById('reset-form').reset();
+            setTimeout(() => {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                toggleView('login');
+            }, 2000);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('view') === 'reset' || window.location.hash.includes('type=recovery')) {
+            toggleView('reset');
+            return;
+        }
+
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session && !window.location.hash.includes('type=recovery')) {
+            window.location.href = 'dashboard.html';
+        }
+    });
+</script>
+</body>
+</html>

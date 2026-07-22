@@ -14,8 +14,6 @@
             --text-light: #ededed;
             --error: #ff4d4d;
             --success: #28a745;
-            --github: #24292e;
-            --google: #4285f4;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
@@ -136,23 +134,11 @@
             font-weight: 700;
             color: var(--bg-dark);
             transition: 0.3s;
+            margin-top: 10px;
         }
         .auth-btn:hover { background: var(--neon-hover); box-shadow: 0 0 20px var(--neon); }
 
-        .divider { display: flex; align-items: center; text-align: center; margin: 15px 0; color: #888; font-size: 0.8rem; }
-        .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .divider:not(:empty)::before { margin-right: .5em; }
-        .divider:not(:empty)::after { margin-left: .5em; }
-
-        .social-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .social-btn {
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            padding: 10px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;
-            cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: white;
-        }
-        .social-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--neon); }
-
-        .toggle-link { font-size: 0.85rem; text-align: center; margin-top: 20px; color: #a2bccc; }
+        .toggle-link { font-size: 0.85rem; text-align: center; margin-top: 25px; color: #a2bccc; }
         .toggle-link span { color: var(--neon); font-weight: 600; cursor: pointer; }
         .toggle-link span:hover { text-decoration: underline; }
 
@@ -244,11 +230,6 @@
                 <button type="submit" class="auth-btn">Sign In</button>
             </form>
 
-            <div class="divider">or continue with</div>
-            <div class="social-grid">
-                <button class="social-btn" onclick="handleSocialLogin('google')">Google</button>
-                <button class="social-btn" onclick="handleSocialLogin('github')">GitHub</button>
-            </div>
             <div class="toggle-link">
                 Don't have an account? <span onclick="toggleView('register')">Sign Up</span>
             </div>
@@ -325,6 +306,7 @@
     </div>
 
 <script>
+    const BASE_URL = 'https://vallealfrie-png.github.io/internalwebsite/';
     const _supabase = supabase.createClient('https://kiknpyyxrslvjhdskshx.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpa25weXl4cnNsdmpoZHNrc2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjI1OTIsImV4cCI6MjEwMDI5ODU5Mn0.aBcVHHmLzrL6X8ECMu4IVA84CuUlqgn04q3MfEL8m0U');
 
     const wrapper = document.getElementById('main-wrapper');
@@ -365,18 +347,9 @@
         if (error) {
             showAlert(error.message, 'error');
         } else {
-            showAlert("Sign in successful! Redirecting...", "success");
-            setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
+            showAlert("Sign in successful! Redirecting to main portal...", "success");
+            setTimeout(() => { window.location.href = 'main.html'; }, 1000);
         }
-    }
-
-    async function handleSocialLogin(provider) {
-        clearAlert();
-        const { data, error } = await _supabase.auth.signInWithOAuth({
-            provider: provider,
-            options: { redirectTo: 'https://vallealfrie-png.github.io/Document-Tracker/dashboard.html' }
-        });
-        if (error) showAlert(error.message, 'error');
     }
 
     async function handleRegister(e) {
@@ -392,7 +365,7 @@
             email: email,
             password: password,
             options: {
-                emailRedirectTo: 'https://vallealfrie-png.github.io/Document-Tracker/',
+                emailRedirectTo: `${BASE_URL}main.html`,
                 data: { name, department, team }
             }
         });
@@ -400,9 +373,9 @@
         if (error) {
             showAlert(error.message, 'error');
         } else {
-            showAlert("Registration complete profile initialized!", "success");
+            showAlert("Registration complete! Redirecting to main portal...", "success");
             document.getElementById('register-form').reset();
-            setTimeout(() => { toggleView('login'); }, 2000);
+            setTimeout(() => { window.location.href = 'main.html'; }, 1500);
         }
     }
 
@@ -412,13 +385,13 @@
         const email = document.getElementById('forgot-email').value;
 
         const { data, error } = await _supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://vallealfrie-png.github.io/Document-Tracker/?view=reset',
+            redirectTo: `${BASE_URL}index.html?view=reset`,
         });
 
         if (error) {
             showAlert(error.message, 'error');
         } else {
-            showAlert("Recovery code link dispatched. Check corporate inbox.", "success");
+            showAlert("Recovery link sent! Check your email inbox.", "success");
             document.getElementById('forgot-form').reset();
         }
     }
@@ -433,7 +406,7 @@
         if (error) {
             showAlert(error.message, 'error');
         } else {
-            showAlert("Password updated! Redirecting to credentials entry...", "success");
+            showAlert("Password updated! Redirecting to sign in...", "success");
             document.getElementById('reset-form').reset();
             setTimeout(() => {
                 window.history.replaceState({}, document.title, window.location.pathname);
@@ -451,7 +424,7 @@
 
         const { data: { session } } = await _supabase.auth.getSession();
         if (session && !window.location.hash.includes('type=recovery')) {
-            window.location.href = 'dashboard.html';
+            window.location.href = 'main.html';
         }
     });
 </script>

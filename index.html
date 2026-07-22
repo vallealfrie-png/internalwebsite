@@ -379,22 +379,36 @@
         }
     }
 
-    async function handleForgotPassword(e) {
-        e.preventDefault();
-        clearAlert();
-        const email = document.getElementById('forgot-email').value;
+    async function handleRegister(e) {
+    e.preventDefault();
+    clearAlert();
+    const name = document.getElementById('reg-name').value;
+    const email = document.getElementById('reg-email').value;
+    const department = document.getElementById('reg-dept').value;
+    const team = document.getElementById('reg-team').value || 'General';
+    const password = document.getElementById('reg-password').value;
 
-        const { data, error } = await _supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${BASE_URL}index.html?view=reset`,
-        });
-
-        if (error) {
-            showAlert(error.message, 'error');
-        } else {
-            showAlert("Recovery link sent! Check your email inbox.", "success");
-            document.getElementById('forgot-form').reset();
+    const { data, error } = await _supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+            emailRedirectTo: 'https://vallealfrie-png.github.io/internalwebsite/main.html',
+            data: { 
+                name: name, 
+                department: department, 
+                team: team 
+            }
         }
+    });
+
+    if (error) {
+        showAlert(error.message, 'error');
+    } else {
+        showAlert("Registration complete! Redirecting to main portal...", "success");
+        document.getElementById('register-form').reset();
+        setTimeout(() => { window.location.href = 'main.html'; }, 1500);
     }
+}
 
     async function handleUpdatePassword(e) {
         e.preventDefault();

@@ -26,7 +26,8 @@
             background: var(--bg-dark); 
             padding: 20px;
             color: var(--text-light);
-            overflow-x: hidden;
+            overflow: hidden;
+            perspective: 1000px;
         }
 
         /* Video Container Replication */
@@ -39,6 +40,15 @@
             box-shadow: 0 0 25px var(--neon);
             border-radius: 16px;
             overflow: hidden;
+            transition: transform 1.2s cubic-bezier(0.7, 0, 0.84, 0), opacity 1s ease-in;
+            transform-style: preserve-3d;
+        }
+
+        /* Portal Entrance Animation State */
+        .wrapper.portal-warp {
+            transform: scale(0.05) translateZ(-800px) rotate(45deg);
+            opacity: 0;
+            filter: blur(10px);
         }
 
         /* Global Alert Box Overlaying Container top */
@@ -188,11 +198,117 @@
         
         /* Expand background cover when in special full-bleed password tasks */
         .wrapper.forgot-active .toggle-panel, .wrapper.reset-active .toggle-panel { transform: translateX(0) scaleX(2); left: 0; }
+
+        /* ================= PORTAL WELCOME OVERLAY ================= */
+        #portal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #020912;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        #portal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .portal-ring {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-top-color: var(--neon);
+            border-bottom-color: #0077ff;
+            box-shadow: 0 0 50px var(--neon), inset 0 0 50px var(--neon);
+            animation: spinPortal 1.5s linear infinite;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .portal-ring::before, .portal-ring::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid transparent;
+        }
+
+        .portal-ring::before {
+            top: -12px; left: -12px; right: -12px; bottom: -12px;
+            border-left-color: #00ffff;
+            border-right-color: #0055ff;
+            animation: spinPortalReverse 2s linear infinite;
+        }
+
+        .portal-ring::after {
+            top: 12px; left: 12px; right: 12px; bottom: 12px;
+            border-top-color: #ffffff;
+            animation: spinPortal 1s linear infinite;
+        }
+
+        .portal-core {
+            width: 140px;
+            height: 140px;
+            background: radial-gradient(circle, #ffffff 0%, var(--neon) 60%, rgba(8,27,41,0.9) 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 60px #ffffff, 0 0 120px var(--neon);
+            animation: pulseCore 1.2s ease-in-out infinite alternate;
+        }
+
+        .portal-text {
+            margin-top: 40px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: #ffffff;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--neon), 0 0 20px var(--neon);
+            animation: blinkText 1.2s ease-in-out infinite alternate;
+        }
+
+        @keyframes spinPortal {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes spinPortalReverse {
+            0% { transform: rotate(360deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        @keyframes pulseCore {
+            0% { transform: scale(0.85); filter: brightness(1); }
+            100% { transform: scale(1.1); filter: brightness(1.5); }
+        }
+
+        @keyframes blinkText {
+            0% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
 
     <div id="alert-msg" class="alert-box"></div>
+
+    <!-- PORTAL WELCOME OVERLAY -->
+    <div id="portal-overlay">
+        <div class="portal-ring">
+            <div class="portal-core"></div>
+        </div>
+        <div class="portal-text">Entering PHMC Portal...</div>
+    </div>
 
     <div class="wrapper" id="main-wrapper">
         
@@ -310,6 +426,7 @@
     const _supabase = supabase.createClient('https://kiknpyyxrslvjhdskshx.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpa25weXl4cnNsdmpoZHNrc2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjI1OTIsImV4cCI6MjEwMDI5ODU5Mn0.aBcVHHmLzrL6X8ECMu4IVA84CuUlqgn04q3MfEL8m0U');
 
     const wrapper = document.getElementById('main-wrapper');
+    const portalOverlay = document.getElementById('portal-overlay');
 
     function showAlert(message, type = 'error') {
         const alertBox = document.getElementById('alert-msg');
@@ -321,6 +438,18 @@
 
     function clearAlert() {
         document.getElementById('alert-msg').style.display = 'none';
+    }
+
+    // Handles Portal Animation triggering prior to redirect
+    function triggerPortalTransition(redirectUrl = 'main.html') {
+        wrapper.classList.add('portal-warp');
+        setTimeout(() => {
+            portalOverlay.classList.add('active');
+        }, 400);
+
+        setTimeout(() => {
+            window.location.href = redirectUrl;
+        }, 1800);
     }
 
     // Handles State Management & CSS Sliding Switch Triggers
@@ -347,8 +476,7 @@
         if (error) {
             showAlert(error.message, 'error');
         } else {
-            showAlert("Sign in successful! Redirecting to main portal...", "success");
-            setTimeout(() => { window.location.href = 'main.html'; }, 1000);
+            triggerPortalTransition('main.html');
         }
     }
 
@@ -373,42 +501,24 @@
         if (error) {
             showAlert(error.message, 'error');
         } else {
-            showAlert("Registration complete! Redirecting to main portal...", "success");
             document.getElementById('register-form').reset();
-            setTimeout(() => { window.location.href = 'main.html'; }, 1500);
+            triggerPortalTransition('main.html');
         }
     }
 
-    async function handleRegister(e) {
-    e.preventDefault();
-    clearAlert();
-    const name = document.getElementById('reg-name').value;
-    const email = document.getElementById('reg-email').value;
-    const department = document.getElementById('reg-dept').value;
-    const team = document.getElementById('reg-team').value || 'General';
-    const password = document.getElementById('reg-password').value;
-
-    const { data, error } = await _supabase.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-            emailRedirectTo: 'https://vallealfrie-png.github.io/internalwebsite/main.html',
-            data: { 
-                name: name, 
-                department: department, 
-                team: team 
-            }
+    async function handleForgotPassword(e) {
+        e.preventDefault();
+        clearAlert();
+        const email = document.getElementById('forgot-email').value;
+        const { error } = await _supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}${window.location.pathname}?view=reset`
+        });
+        if (error) {
+            showAlert(error.message, 'error');
+        } else {
+            showAlert('Password reset link sent to your email!', 'success');
         }
-    });
-
-    if (error) {
-        showAlert(error.message, 'error');
-    } else {
-        showAlert("Registration complete! Redirecting to main portal...", "success");
-        document.getElementById('register-form').reset();
-        setTimeout(() => { window.location.href = 'main.html'; }, 1500);
     }
-}
 
     async function handleUpdatePassword(e) {
         e.preventDefault();

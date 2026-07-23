@@ -14,6 +14,8 @@
             --text-light: #ededed;
             --error: #ff4d4d;
             --success: #28a745;
+            --medical-green: #00e676;
+            --medical-blue: #00b0ff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
@@ -46,7 +48,7 @@
 
         /* Portal Entrance Animation State */
         .wrapper.portal-warp {
-            transform: scale(0.05) translateZ(-800px) rotate(45deg);
+            transform: scale(0.05) translateZ(-800px) rotate(15deg);
             opacity: 0;
             filter: blur(10px);
         }
@@ -199,14 +201,14 @@
         /* Expand background cover when in special full-bleed password tasks */
         .wrapper.forgot-active .toggle-panel, .wrapper.reset-active .toggle-panel { transform: translateX(0) scaleX(2); left: 0; }
 
-        /* ================= PORTAL WELCOME OVERLAY ================= */
+        /* ================= HEALTHCARE WELCOME OVERLAY ================= */
         #portal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: #020912;
+            background: radial-gradient(circle at center, #0a2540 0%, #030c14 100%);
             z-index: 9999;
             display: flex;
             flex-direction: column;
@@ -214,7 +216,9 @@
             align-items: center;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.6s ease;
+            text-align: center;
+            padding: 20px;
         }
 
         #portal-overlay.active {
@@ -222,79 +226,103 @@
             pointer-events: auto;
         }
 
-        .portal-ring {
+        /* Pulse Rings Container */
+        .medical-ring-container {
             position: relative;
-            width: 260px;
-            height: 260px;
-            border-radius: 50%;
-            border: 3px solid transparent;
-            border-top-color: var(--neon);
-            border-bottom-color: #0077ff;
-            box-shadow: 0 0 50px var(--neon), inset 0 0 50px var(--neon);
-            animation: spinPortal 1.5s linear infinite;
+            width: 220px;
+            height: 220px;
             display: flex;
             justify-content: center;
             align-items: center;
+            margin-bottom: 30px;
         }
 
-        .portal-ring::before, .portal-ring::after {
-            content: '';
+        .pulse-ring {
             position: absolute;
+            width: 100%;
+            height: 100%;
             border-radius: 50%;
-            border: 2px solid transparent;
+            border: 2px solid var(--medical-blue);
+            box-shadow: 0 0 20px var(--medical-blue);
+            animation: medicalPulse 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
         }
 
-        .portal-ring::before {
-            top: -12px; left: -12px; right: -12px; bottom: -12px;
-            border-left-color: #00ffff;
-            border-right-color: #0055ff;
-            animation: spinPortalReverse 2s linear infinite;
+        .pulse-ring:nth-child(2) {
+            animation-delay: 0.5s;
+            border-color: var(--medical-green);
+            box-shadow: 0 0 25px var(--medical-green);
         }
 
-        .portal-ring::after {
-            top: 12px; left: 12px; right: 12px; bottom: 12px;
-            border-top-color: #ffffff;
-            animation: spinPortal 1s linear infinite;
-        }
-
-        .portal-core {
-            width: 140px;
-            height: 140px;
-            background: radial-gradient(circle, #ffffff 0%, var(--neon) 60%, rgba(8,27,41,0.9) 100%);
+        .portal-logo-card {
+            width: 130px;
+            height: 130px;
+            background: rgba(8, 27, 41, 0.9);
             border-radius: 50%;
-            box-shadow: 0 0 60px #ffffff, 0 0 120px var(--neon);
-            animation: pulseCore 1.2s ease-in-out infinite alternate;
+            border: 2px solid var(--neon);
+            box-shadow: 0 0 30px var(--neon);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+            padding: 15px;
+            backdrop-filter: blur(8px);
         }
 
-        .portal-text {
-            margin-top: 40px;
-            font-size: 1.4rem;
-            font-weight: 700;
-            letter-spacing: 3px;
-            color: #ffffff;
+        .portal-logo-card img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 8px var(--neon));
+        }
+
+        /* Heartbeat Line Animation Visual */
+        .ecg-line {
+            width: 280px;
+            height: 40px;
+            margin: -10px auto 20px;
+            stroke: var(--neon);
+            stroke-width: 3;
+            fill: none;
+            stroke-dasharray: 600;
+            stroke-dashoffset: 600;
+            animation: ecgDash 2s linear infinite;
+            filter: drop-shadow(0 0 8px var(--neon));
+        }
+
+        .welcome-title {
+            font-size: 1.1rem;
             text-transform: uppercase;
-            text-shadow: 0 0 10px var(--neon), 0 0 20px var(--neon);
-            animation: blinkText 1.2s ease-in-out infinite alternate;
+            letter-spacing: 2px;
+            color: #a2bccc;
+            margin-bottom: 8px;
         }
 
-        @keyframes spinPortal {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .welcome-user-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 0 12px var(--neon), 0 0 25px var(--neon);
+            margin-bottom: 12px;
+            line-height: 1.3;
+            max-width: 800px;
         }
 
-        @keyframes spinPortalReverse {
-            0% { transform: rotate(360deg); }
-            100% { transform: rotate(0deg); }
+        .welcome-subtext {
+            font-size: 0.95rem;
+            color: var(--medical-green);
+            letter-spacing: 1.5px;
+            font-weight: 600;
+            text-transform: uppercase;
         }
 
-        @keyframes pulseCore {
-            0% { transform: scale(0.85); filter: brightness(1); }
-            100% { transform: scale(1.1); filter: brightness(1.5); }
+        @keyframes medicalPulse {
+            0% { transform: scale(0.7); opacity: 0.8; }
+            100% { transform: scale(1.4); opacity: 0; }
         }
 
-        @keyframes blinkText {
-            0% { opacity: 0.6; }
-            100% { opacity: 1; }
+        @keyframes ecgDash {
+            0% { stroke-dashoffset: 600; }
+            100% { stroke-dashoffset: 0; }
         }
     </style>
 </head>
@@ -302,12 +330,23 @@
 
     <div id="alert-msg" class="alert-box"></div>
 
-    <!-- PORTAL WELCOME OVERLAY -->
+    <!-- HEALTHCARE WELCOME OVERLAY -->
     <div id="portal-overlay">
-        <div class="portal-ring">
-            <div class="portal-core"></div>
+        <div class="medical-ring-container">
+            <div class="pulse-ring"></div>
+            <div class="pulse-ring"></div>
+            <div class="portal-logo-card">
+                <img src="https://i.imgur.com/VbZKWAf.png" alt="PHMC Logo">
+            </div>
         </div>
-        <div class="portal-text">Entering PHMC Portal...</div>
+
+        <svg class="ecg-line" viewBox="0 0 300 50">
+            <path d="M0 25 L80 25 L90 10 L100 40 L110 5 L120 35 L130 25 L300 25" />
+        </svg>
+
+        <div class="welcome-title">Authenticating Secure Access</div>
+        <div class="welcome-user-name" id="display-welcome-message">Welcome to Perpetual Help Medical Center Internal Website</div>
+        <div class="welcome-subtext">Initializing Clinical Portal...</div>
     </div>
 
     <div class="wrapper" id="main-wrapper">
@@ -440,16 +479,36 @@
         document.getElementById('alert-msg').style.display = 'none';
     }
 
-    // Handles Portal Animation triggering prior to redirect
-    function triggerPortalTransition(redirectUrl = 'main.html') {
+    // Fetches profile name from user_profiles table and triggers transition overlay
+    async function triggerPortalTransition(userId, fallbackName = '') {
+        let userName = fallbackName;
+
+        if (userId) {
+            const { data, error } = await _supabase
+                .from('user_profiles')
+                .select('name')
+                .eq('id', userId)
+                .single();
+
+            if (data && data.name) {
+                userName = data.name;
+            }
+        }
+
+        const formattedGreeting = userName 
+            ? `Welcome to Perpetual Help Medical Center Internal Website, ${userName}!` 
+            : `Welcome to Perpetual Help Medical Center Internal Website!`;
+
+        document.getElementById('display-welcome-message').innerText = formattedGreeting;
+
         wrapper.classList.add('portal-warp');
         setTimeout(() => {
             portalOverlay.classList.add('active');
-        }, 400);
+        }, 300);
 
         setTimeout(() => {
-            window.location.href = redirectUrl;
-        }, 1800);
+            window.location.href = 'main.html';
+        }, 2600);
     }
 
     // Handles State Management & CSS Sliding Switch Triggers
@@ -475,8 +534,8 @@
         const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
         if (error) {
             showAlert(error.message, 'error');
-        } else {
-            triggerPortalTransition('main.html');
+        } else if (data.user) {
+            await triggerPortalTransition(data.user.id);
         }
     }
 
@@ -502,7 +561,7 @@
             showAlert(error.message, 'error');
         } else {
             document.getElementById('register-form').reset();
-            triggerPortalTransition('main.html');
+            await triggerPortalTransition(data?.user?.id, name);
         }
     }
 

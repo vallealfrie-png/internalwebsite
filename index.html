@@ -3,80 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PHMC Staff Portal | Authentication</title>
-    <!-- Boxicons for icons -->
-    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
-    <!-- Supabase JS CDN -->
+    <title>PHMC Internal Website - Portal</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
-        }
-
         :root {
-            --bg-dark: #081b29;
-            --panel-dark: #0e2433;
             --neon: #0ef;
-            --text-white: #fff;
-            --text-dim: rgba(255, 255, 255, 0.7);
+            --neon-hover: #0bc2cc;
+            --bg-dark: #081b29;
+            --panel-bg: rgba(8, 27, 41, 0.85);
+            --text-light: #ededed;
+            --error: #ff4d4d;
+            --success: #28a745;
+            --medical-green: #00e676;
+            --medical-blue: #00b0ff;
         }
 
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: var(--bg-dark);
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        
+        body { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            background: var(--bg-dark); 
+            padding: 20px;
+            color: var(--text-light);
             overflow: hidden;
-            position: relative;
+            perspective: 1000px;
         }
 
-        /* SVG Background ECG Line Animation */
-        .ecg-bg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            opacity: 0.15;
-            pointer-events: none;
-        }
-
-        .ecg-path {
-            stroke: var(--neon);
-            stroke-width: 2;
-            fill: none;
-            stroke-dasharray: 1000;
-            stroke-dashoffset: 1000;
-            animation: dash 5s linear infinite;
-        }
-
-        @keyframes dash {
-            to {
-                stroke-dashoffset: 0;
-            }
-        }
-
-        /* Main Wrapper */
+        /* Video Container Replication */
         .wrapper {
             position: relative;
-            width: 750px;
-            height: 520px;
+            width: 850px;
+            height: 550px;
             background: transparent;
             border: 2px solid var(--neon);
             box-shadow: 0 0 25px var(--neon);
+            border-radius: 16px;
             overflow: hidden;
-            border-radius: 15px;
-            z-index: 10;
+            transition: transform 1.2s cubic-bezier(0.7, 0, 0.84, 0), opacity 1s ease-in;
+            transform-style: preserve-3d;
         }
 
-        .wrapper .form-box {
+        /* Portal Entrance Animation State */
+        .wrapper.portal-warp {
+            transform: scale(0.05) translateZ(-800px) rotate(15deg);
+            opacity: 0;
+            filter: blur(10px);
+        }
+
+        /* Global Alert Box Overlaying Container top */
+        .alert-box {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: none;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .alert-error { background: rgba(248, 215, 218, 0.9); color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-success { background: rgba(212, 237, 218, 0.9); color: #155724; border: 1px solid #c3e6cb; }
+
+        /* Sliding Form Container Mechanics */
+        .form-box {
             position: absolute;
             top: 0;
             width: 50%;
@@ -84,638 +81,547 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding: 0 40px;
-            transition: .6s ease-in-out;
+            padding: 40px;
+            background: var(--panel-bg);
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
         }
 
-        /* Login Box */
-        .wrapper .form-box.login {
+        .form-box.login { left: 0; z-index: 1; opacity: 1; }
+        .wrapper.active .form-box.login { transform: translateX(-100%); opacity: 0; z-index: 0; }
+
+        .form-box.register { right: 0; transform: translateX(100%); opacity: 0; z-index: 0; }
+        .wrapper.active .form-box.register { transform: translateX(0); opacity: 1; z-index: 1; }
+
+        /* Special States: Forgot & Reset Overlay Panels */
+        .form-box.forgot, .form-box.reset {
             left: 0;
-        }
-
-        .wrapper.active .form-box.login {
-            transform: translateX(-100%);
-        }
-
-        /* Register Box */
-        .wrapper .form-box.register {
-            right: 0;
-            transform: translateX(100%);
-        }
-
-        .wrapper.active .form-box.register {
-            transform: translateX(0);
-        }
-
-        /* Forgot & Reset Password States */
-        .wrapper .form-box.forgot,
-        .wrapper .form-box.reset {
-            left: 0;
+            width: 50%;
             transform: translateX(-100%);
             opacity: 0;
-            pointer-events: none;
+            z-index: 0;
         }
+        .wrapper.forgot-active .form-box.forgot { transform: translateX(0); opacity: 1; z-index: 2; }
+        .wrapper.forgot-active .form-box.login { transform: translateX(100%); opacity: 0; }
+        .wrapper.reset-active .form-box.reset { transform: translateX(0); opacity: 1; z-index: 2; }
+        .wrapper.reset-active .form-box.login { transform: translateX(100%); opacity: 0; }
 
-        .wrapper.forgot-active .form-box.login {
-            transform: translateX(-100%);
+        /* Typography & Headings */
+        h2 { font-size: 2rem; text-align: center; margin-bottom: 20px; color: var(--text-light); text-shadow: 0 0 5px var(--neon); }
+        
+        .form-group { position: relative; width: 100%; margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: #a2bccc; text-transform: uppercase; margin-bottom: 5px; }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: transparent;
+            border: 1px solid rgba(0, 238, 255, 0.3);
+            border-radius: 6px;
+            outline: none;
+            font-size: 0.95rem;
+            color: var(--text-light);
+            transition: 0.3s;
         }
-
-        .wrapper.forgot-active .form-box.forgot {
-            transform: translateX(0);
-            opacity: 1;
-            pointer-events: all;
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--neon);
+            box-shadow: 0 0 8px var(--neon);
         }
+        .form-group select option { background: var(--bg-dark); color: var(--text-light); }
 
-        .wrapper.reset-active .form-box.login,
-        .wrapper.reset-active .form-box.register,
-        .wrapper.reset-active .form-box.forgot {
-            transform: translateX(-100%);
-            opacity: 0;
-            pointer-events: none;
-        }
+        .forgot-link { text-align: right; margin: -5px 0 15px; font-size: 0.85rem; }
+        .forgot-link span { color: var(--neon); cursor: pointer; text-decoration: none; }
+        .forgot-link span:hover { text-decoration: underline; }
 
-        .wrapper.reset-active .form-box.reset {
-            transform: translateX(0);
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        /* Form Controls */
-        .form-box h2 {
-            font-size: 28px;
-            color: var(--text-white);
-            text-align: center;
-            margin-bottom: 15px;
-        }
-
-        .input-box {
-            position: relative;
+        /* Buttons */
+        .auth-btn {
             width: 100%;
             height: 45px;
-            margin: 12px 0;
-        }
-
-        .input-box input,
-        .input-box select {
-            width: 100%;
-            height: 100%;
-            background: transparent;
+            background: var(--neon);
             border: none;
             outline: none;
-            border-bottom: 2px solid var(--text-white);
-            padding-right: 23px;
-            font-size: 14px;
-            color: var(--text-white);
-            font-weight: 500;
-            transition: .5s;
-        }
-
-        /* Styling for Select dropdown options */
-        .input-box select option {
-            background: var(--panel-dark);
-            color: var(--text-white);
-        }
-
-        .input-box input:focus,
-        .input-box input:valid,
-        .input-box select:focus,
-        .input-box select:valid {
-            border-bottom-color: var(--neon);
-        }
-
-        .input-box label {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            transform: translateY(-50%);
-            font-size: 14px;
-            color: var(--text-white);
-            pointer-events: none;
-            transition: .5s;
-        }
-
-        .input-box input:focus~label,
-        .input-box input:valid~label,
-        .input-box select:focus~label,
-        .input-box select:valid~label {
-            top: -5px;
-            color: var(--neon);
-            font-size: 12px;
-        }
-
-        .input-box i {
-            position: absolute;
-            top: 50%;
-            right: 0;
-            transform: translateY(-50%);
-            font-size: 18px;
-            color: var(--text-white);
-            transition: .5s;
-        }
-
-        .input-box input:focus~i,
-        .input-box input:valid~i,
-        .input-box select:focus~i,
-        .input-box select:valid~i {
-            color: var(--neon);
-        }
-
-        .btn {
-            position: relative;
-            width: 100%;
-            height: 45px;
-            background: transparent;
-            border: 2px solid var(--neon);
-            outline: none;
-            border-radius: 40px;
+            border-radius: 6px;
+            box-shadow: 0 0 10px var(--neon);
             cursor: pointer;
-            font-size: 15px;
-            color: var(--text-white);
-            font-weight: 600;
-            z-index: 1;
-            overflow: hidden;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--bg-dark);
+            transition: 0.3s;
             margin-top: 10px;
-            transition: .5s;
         }
+        .auth-btn:hover { background: var(--neon-hover); box-shadow: 0 0 20px var(--neon); }
 
-        .btn::before {
-            content: '';
+        .toggle-link { font-size: 0.85rem; text-align: center; margin-top: 25px; color: #a2bccc; }
+        .toggle-link span { color: var(--neon); font-weight: 600; cursor: pointer; }
+        .toggle-link span:hover { text-decoration: underline; }
+
+        /* Sliding Info Accent Overlay Panels */
+        .info-content {
             position: absolute;
-            top: -100%;
-            left: 0;
-            width: 100%;
-            height: 300%;
-            background: linear-gradient(#081b29, var(--neon), #081b29, var(--neon));
-            z-index: -1;
-            transition: .5s;
-        }
-
-        .btn:hover::before {
             top: 0;
-        }
-
-        .btn:hover {
-            box-shadow: 0 0 15px var(--neon);
-        }
-
-        .logreg-link {
-            font-size: 13px;
-            color: var(--text-white);
-            text-align: center;
-            margin: 15px 0 0;
-        }
-
-        .logreg-link p a {
-            color: var(--neon);
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .logreg-link p a:hover {
-            text-decoration: underline;
-        }
-
-        /* Sliding Toggle Panels */
-        .toggle-box {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-        }
-
-        .toggle-box::before {
-            content: '';
-            position: absolute;
-            left: -250%;
-            width: 300%;
-            height: 100%;
-            background: var(--neon);
-            border-radius: 150px;
-            z-index: 2;
-            transition: 1.8s ease-in-out;
-        }
-
-        .wrapper.active .toggle-box::before {
-            left: 50%;
-        }
-
-        .toggle-panel {
-            position: absolute;
             width: 50%;
             height: 100%;
-            color: var(--bg-dark);
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: center;
+            padding: 40px;
             z-index: 2;
-            transition: .6s ease-in-out;
-            padding: 0 30px;
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
             text-align: center;
         }
 
-        .toggle-panel.toggle-left {
-            left: 0;
-            transition-delay: .3s;
-        }
+        .info-content.left { right: 0; transform: translateX(0); opacity: 1; }
+        .wrapper.active .info-content.left { transform: translateX(100%); opacity: 0; pointer-events: none; }
 
-        .wrapper.active .toggle-panel.toggle-left {
-            transform: translateX(-100%);
-            transition-delay: 0s;
-        }
+        .info-content.right { left: 0; transform: translateX(-100%); opacity: 0; pointer-events: none; }
+        .wrapper.active .info-content.right { transform: translateX(0); opacity: 1; pointer-events: auto; }
 
-        .toggle-panel.toggle-right {
-            right: 0;
-            transform: translateX(100%);
-            transition-delay: 0s;
-        }
+        /* Hide text overlays during password loops */
+        .wrapper.forgot-active .info-content, .wrapper.reset-active .info-content { opacity: 0 !important; pointer-events: none; }
 
-        .wrapper.active .toggle-panel.toggle-right {
-            transform: translateX(0);
-            transition-delay: .3s;
-        }
+        .info-content img { height: 60px; margin: 0 auto 15px; filter: drop-shadow(0 0 5px var(--neon)); }
+        .info-content h2 { color: var(--text-light); text-shadow: 0 0 10px var(--neon); }
+        .info-content p { font-size: 0.9rem; color: #a2bccc; line-height: 1.5; margin-top: 10px; }
 
-        .toggle-panel h1 {
-            font-size: 26px;
-            font-weight: 800;
-            line-height: 1.2;
-            margin-bottom: 10px;
+        /* Sliding Diagonal Colored Panel Layer */
+        .toggle-panel {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(135deg, #001f3f, #081b29);
+            border-left: 2px solid var(--neon);
+            box-shadow: -10px 0 25px rgba(0, 238, 255, 0.2);
+            transition: transform 0.6s ease-in-out;
+            z-index: 2;
+            pointer-events: none;
         }
+        .wrapper.active .toggle-panel { transform: translateX(-100%); border-left: none; border-right: 2px solid var(--neon); box-shadow: 10px 0 25px rgba(0, 238, 255, 0.2); }
+        
+        /* Expand background cover when in special full-bleed password tasks */
+        .wrapper.forgot-active .toggle-panel, .wrapper.reset-active .toggle-panel { transform: translateX(0) scaleX(2); left: 0; }
 
-        .toggle-panel p {
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 20px;
-        }
-
-        .toggle-panel .btn {
-            width: 160px;
-            height: 40px;
-            border-color: var(--bg-dark);
-            color: var(--bg-dark);
-        }
-
-        .toggle-panel .btn::before {
-            background: linear-gradient(var(--neon), var(--bg-dark), var(--neon), var(--bg-dark));
-        }
-
-        .toggle-panel .btn:hover {
-            color: var(--text-white);
-            box-shadow: 0 0 15px var(--bg-dark);
-        }
-
-        /* Fullscreen Transition Overlay */
+        /* ================= HEALTHCARE WELCOME OVERLAY ================= */
         #portal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(8, 27, 41, 0.95);
-            backdrop-filter: blur(10px);
+            background: radial-gradient(circle at center, #0a2540 0%, #030c14 100%);
+            z-index: 9999;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 9999;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.6s ease;
+            text-align: center;
+            padding: 20px;
         }
 
         #portal-overlay.active {
             opacity: 1;
-            pointer-events: all;
+            pointer-events: auto;
+        }
+
+        /* Pulse Rings Container */
+        .medical-ring-container {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
         }
 
         .pulse-ring {
-            width: 120px;
-            height: 120px;
-            border: 3px solid var(--neon);
-            border-radius: 50%;
             position: absolute;
-            animation: ringPulse 2s infinite ease-out;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--medical-blue);
+            box-shadow: 0 0 20px var(--medical-blue);
+            animation: medicalPulse 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
         }
 
-        @keyframes ringPulse {
-            0% {
-                transform: scale(0.8);
-                opacity: 1;
-            }
-            100% {
-                transform: scale(1.6);
-                opacity: 0;
-            }
+        .pulse-ring:nth-child(2) {
+            animation-delay: 0.5s;
+            border-color: var(--medical-green);
+            box-shadow: 0 0 25px var(--medical-green);
         }
 
-        .welcome-text {
-            color: var(--text-white);
-            font-size: 22px;
+        .portal-logo-card {
+            width: 130px;
+            height: 130px;
+            background: rgba(8, 27, 41, 0.9);
+            border-radius: 50%;
+            border: 2px solid var(--neon);
+            box-shadow: 0 0 30px var(--neon);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+            padding: 15px;
+            backdrop-filter: blur(8px);
+        }
+
+        .portal-logo-card img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 8px var(--neon));
+        }
+
+        /* Heartbeat Line Animation Visual */
+        .ecg-line {
+            width: 280px;
+            height: 40px;
+            margin: -10px auto 20px;
+            stroke: var(--neon);
+            stroke-width: 3;
+            fill: none;
+            stroke-dasharray: 600;
+            stroke-dashoffset: 600;
+            animation: ecgDash 2s linear infinite;
+            filter: drop-shadow(0 0 8px var(--neon));
+        }
+
+        .welcome-title {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #a2bccc;
+            margin-bottom: 8px;
+        }
+
+        .welcome-user-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 0 12px var(--neon), 0 0 25px var(--neon);
+            margin-bottom: 12px;
+            line-height: 1.3;
+            max-width: 800px;
+        }
+
+        .welcome-subtext {
+            font-size: 0.95rem;
+            color: var(--medical-green);
+            letter-spacing: 1.5px;
             font-weight: 600;
-            margin-top: 20px;
-            text-shadow: 0 0 10px var(--neon);
-            text-align: center;
+            text-transform: uppercase;
         }
 
-        .ecg-line-overlay {
-            width: 250px;
-            height: 50px;
-            margin-top: 15px;
+        @keyframes medicalPulse {
+            0% { transform: scale(0.7); opacity: 0.8; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        @keyframes ecgDash {
+            0% { stroke-dashoffset: 600; }
+            100% { stroke-dashoffset: 0; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Background ECG Animation -->
-    <svg class="ecg-bg" viewBox="0 0 1000 100">
-        <path class="ecg-path" d="M0,50 L300,50 L310,20 L320,80 L330,10 L340,90 L350,50 L1000,50" />
-    </svg>
+    <div id="alert-msg" class="alert-box"></div>
+
+    <!-- HEALTHCARE WELCOME OVERLAY -->
+    <div id="portal-overlay">
+        <div class="medical-ring-container">
+            <div class="pulse-ring"></div>
+            <div class="pulse-ring"></div>
+            <div class="portal-logo-card">
+                <img src="https://i.imgur.com/VbZKWAf.png" alt="PHMC Logo">
+            </div>
+        </div>
+
+        <svg class="ecg-line" viewBox="0 0 300 50">
+            <path d="M0 25 L80 25 L90 10 L100 40 L110 5 L120 35 L130 25 L300 25" />
+        </svg>
+
+        <div class="welcome-title">Authenticating Secure Access</div>
+        <div class="welcome-user-name" id="display-welcome-message">Welcome to Perpetual Help Medical Center Internal Website</div>
+        <div class="welcome-subtext">Initializing Clinical Portal...</div>
+    </div>
 
     <div class="wrapper" id="main-wrapper">
         
-        <!-- LOGIN FORM -->
-        <div class="form-box login">
-            <form id="login-form" onsubmit="handleLogin(event)">
-                <h2>PHMC Staff Login</h2>
-                <div class="input-box">
-                    <input type="email" id="login-email" required>
-                    <label>Corporate Email</label>
-                    <i class='bx bxs-envelope'></i>
-                </div>
-                <div class="input-box">
-                    <input type="password" id="login-password" required>
-                    <label>Password</label>
-                    <i class='bx bxs-lock-alt'></i>
-                </div>
-                <div style="text-align: right; margin-top: -5px; margin-bottom: 10px;">
-                    <a href="#" onclick="showForgotPassword(event)" style="color: var(--neon); font-size: 12px; text-decoration: none;">Forgot Password?</a>
-                </div>
-                <button type="submit" class="btn">Authenticate</button>
-            </form>
+        <!-- SLIDING DIAGONAL VISUAL PARTITION -->
+        <div class="toggle-panel"></div>
+
+        <!-- VISUAL SIDEBARS (TEXT & LOGOS) -->
+        <div class="info-content left">
+            <img src="https://i.imgur.com/VbZKWAf.png" alt="PHMC Logo">
+            <h2>WELCOME BACK!</h2>
+            <p>We're happy to have you back with us. Log in to access the system and manage your active routing logs.</p>
         </div>
 
-        <!-- REGISTER FORM -->
-        <div class="form-box register">
-            <form id="register-form" onsubmit="handleRegister(event)">
-                <h2>Staff Registration</h2>
-                <div class="input-box">
-                    <input type="text" id="reg-name" required>
-                    <label>Full Name</label>
-                    <i class='bx bxs-user'></i>
-                </div>
-                <div class="input-box">
-                    <input type="email" id="reg-email" required>
+        <div class="info-content right">
+            <img src="https://i.imgur.com/VbZKWAf.png" alt="PHMC Logo">
+            <h2>JOIN THE PORTAL</h2>
+            <p>Establish your Internal Website. Setup your department assignment profile to continue.</p>
+        </div>
+
+        <!-- LOGIN PANEL FORM -->
+        <div class="form-box login">
+            <h2>Login</h2>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
                     <label>Corporate Email</label>
-                    <i class='bx bxs-envelope'></i>
+                    <input type="email" id="login-email" required placeholder="name@perpetualhelp.com.ph">
                 </div>
-                <div class="input-box">
-                    <input type="text" id="reg-dept" required>
-                    <label>Department</label>
-                    <i class='bx bxs-building'></i>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••">
                 </div>
-                <div class="input-box">
-                    <input type="text" id="reg-team" required>
-                    <label>Team / Section</label>
-                    <i class='bx bxs-group'></i>
+                <div class="forgot-link">
+                    <span onclick="toggleView('forgot')">Forgot Password?</span>
                 </div>
-                <!-- Role Dropdown Field -->
-                <div class="input-box">
+                <button type="submit" class="auth-btn">Sign In</button>
+            </form>
+
+            <div class="toggle-link">
+                Don't have an account? <span onclick="toggleView('register')">Sign Up</span>
+            </div>
+        </div>
+
+        <!-- SIGN UP PANEL FORM -->
+        <div class="form-box register">
+            <h2>Sign Up</h2>
+            <form id="register-form" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="reg-name" required placeholder="John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Corporate Email</label>
+                    <input type="email" id="reg-email" required placeholder="yourname@perpetualhelp.com.ph">
+                </div>
+                <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                    <div class="form-group">
+                        <label>Department</label>
+                        <select id="reg-dept" required>
+                            <option value="" disabled selected>Select</option>
+                            <option value="Medical Records">Medical Records</option>
+                            <option value="Nursing Office">Nursing Office</option>
+                            <option value="Human Resources">Human Resources</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Purchasing">Purchasing</option>
+                            <option value="IT Department">IT Department</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Team / Section</label>
+                        <input type="text" id="reg-team" placeholder="e.g. Billing">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
                     <select id="reg-role" required>
-                        <option value="" disabled selected hidden></option>
+                        <option value="" disabled selected>Select Role</option>
                         <option value="Staff">Staff</option>
                         <option value="Doctor">Doctor</option>
                         <option value="Nurse">Nurse</option>
                         <option value="Department Head">Department Head</option>
                         <option value="Admin">Admin</option>
                     </select>
-                    <label>Role</label>
-                    <i class='bx bxs-badge-check'></i>
                 </div>
-                <div class="input-box">
-                    <input type="password" id="reg-password" required>
+                <div class="form-group">
                     <label>Password</label>
-                    <i class='bx bxs-lock-alt'></i>
+                    <input type="password" id="reg-password" required minlength="6" placeholder="Min 6 characters">
                 </div>
-                <button type="submit" class="btn">Register Account</button>
+                <button type="submit" class="auth-btn">Register Profile</button>
             </form>
+            <div class="toggle-link">
+                Already have an account? <span onclick="toggleView('login')">Login</span>
+            </div>
         </div>
 
-        <!-- FORGOT PASSWORD FORM -->
+        <!-- FORGOT PASSWORD PANEL FORM -->
         <div class="form-box forgot">
+            <h2>Reset Password</h2>
             <form id="forgot-form" onsubmit="handleForgotPassword(event)">
-                <h2>Reset Access</h2>
-                <p style="color: var(--text-dim); font-size: 12px; text-align: center; margin-bottom: 15px;">Enter your corporate email to receive a recovery link.</p>
-                <div class="input-box">
-                    <input type="email" id="forgot-email" required>
-                    <label>Corporate Email</label>
-                    <i class='bx bxs-envelope'></i>
+                <div class="form-group">
+                    <label>Registered Email Address</label>
+                    <input type="email" id="forgot-email" required placeholder="name@perpetualhelp.com.ph">
                 </div>
-                <button type="submit" class="btn">Send Link</button>
-                <div class="logreg-link">
-                    <p><a href="#" onclick="showLoginFromForgot(event)">Back to Login</a></p>
-                </div>
+                <button type="submit" class="auth-btn">Send Recovery Link</button>
             </form>
+            <div class="toggle-link">
+                Back to <span onclick="toggleView('login')">Sign In</span>
+            </div>
         </div>
 
-        <!-- RESET PASSWORD FORM -->
+        <!-- PASSWORD RESET MODIFIER FORM -->
         <div class="form-box reset">
+            <h2>New Password</h2>
             <form id="reset-form" onsubmit="handleUpdatePassword(event)">
-                <h2>New Password</h2>
-                <div class="input-box">
-                    <input type="password" id="reset-password" required>
+                <div class="form-group">
                     <label>Enter New Password</label>
-                    <i class='bx bxs-lock-alt'></i>
+                    <input type="password" id="reset-password" required minlength="6" placeholder="Minimum 6 characters">
                 </div>
-                <button type="submit" class="btn">Update Password</button>
+                <button type="submit" class="auth-btn">Update Password</button>
             </form>
         </div>
 
-        <!-- SLIDING TOGGLE PANEL -->
-        <div class="toggle-box">
-            <div class="toggle-panel toggle-left">
-                <h1>PERPETUAL HELP<br>MEDICAL CENTER</h1>
-                <p>Welcome to the Staff Portal. Sign in with your corporate credentials to access hospital metrics and system tools.</p>
-                <button class="btn register-btn" onclick="toggleForm(true)">Register</button>
-            </div>
-            <div class="toggle-panel toggle-right">
-                <h1>SYSTEM ACCESS</h1>
-                <p>Already registered with a staff account? Proceed to login.</p>
-                <button class="btn login-btn" onclick="toggleForm(false)">Login</button>
-            </div>
-        </div>
-
     </div>
 
-    <!-- FULLSCREEN PORTAL TRANSITION OVERLAY -->
-    <div id="portal-overlay">
-        <div class="pulse-ring"></div>
-        <div class="welcome-text" id="display-welcome-message">Accessing Portal...</div>
-        <svg class="ecg-line-overlay" viewBox="0 0 500 100">
-            <path class="ecg-path" d="M0,50 L150,50 L160,20 L170,80 L180,10 L190,90 L200,50 L500,50" />
-        </svg>
-    </div>
+<script>
+    const BASE_URL = 'https://vallealfrie-png.github.io/internalwebsite/';
+    const _supabase = supabase.createClient('https://kiknpyyxrslvjhdskshx.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpa25weXl4cnNsdmpoZHNrc2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjI1OTIsImV4cCI6MjEwMDI5ODU5Mn0.aBcVHHmLzrL6X8ECMu4IVA84CuUlqgn04q3MfEL8m0U');
 
-    <script>
-        // --- SUPABASE CONFIGURATION ---
-        const SUPABASE_URL = "https://kiknpyyxrslvjhdskshx.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_NrjGthTKEZZJZaQboWxf5A_Ob6bTY8f";
-        const BASE_URL = window.location.origin + window.location.pathname.replace("index.html", "");
+    const wrapper = document.getElementById('main-wrapper');
+    const portalOverlay = document.getElementById('portal-overlay');
 
-        // Safe initialization without re-declaration collisions
-        window.supabaseClient = window.supabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const supabase = window.supabaseClient;
+    function showAlert(message, type = 'error') {
+        const alertBox = document.getElementById('alert-msg');
+        alertBox.innerText = message;
+        alertBox.className = `alert-box alert-${type}`;
+        alertBox.style.display = 'block';
+        setTimeout(() => alertBox.style.display = 'none', 4000);
+    }
 
-        const wrapper = document.getElementById('main-wrapper');
+    function clearAlert() {
+        document.getElementById('alert-msg').style.display = 'none';
+    }
 
-        // --- UI PANEL TOGGLES ---
-        function toggleForm(isRegister) {
-            wrapper.classList.remove('forgot-active', 'reset-active');
-            if (isRegister) {
-                wrapper.classList.add('active');
-            } else {
-                wrapper.classList.remove('active');
-            }
-        }
+    // Fetches profile name from user_profiles table and triggers transition overlay
+    async function triggerPortalTransition(userId, fallbackName = '') {
+        let userName = fallbackName;
 
-        function showForgotPassword(e) {
-            if (e) e.preventDefault();
-            wrapper.classList.add('forgot-active');
-        }
-
-        function showLoginFromForgot(e) {
-            if (e) e.preventDefault();
-            wrapper.classList.remove('forgot-active');
-        }
-
-        // --- AUTHENTICATION HANDLERS ---
-
-        // 1. LOGIN
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: email,
-                password: password
-            });
-
-            if (error) {
-                alert("Authentication Failed: " + error.message);
-                return;
-            }
-
-            // Fetch user profile name for transition display
-            let userName = "Staff Member";
-            const { data: profile } = await supabase
+        if (userId) {
+            const { data, error } = await _supabase
                 .from('user_profiles')
                 .select('name')
-                .eq('id', data.user.id)
+                .eq('id', userId)
                 .single();
 
-            if (profile && profile.name) {
-                userName = profile.name;
+            if (data && data.name) {
+                userName = data.name;
             }
-
-            triggerPortalTransition(userName);
         }
 
-        // 2. REGISTER
-        async function handleRegister(e) {
-            e.preventDefault();
-            const fullName = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value;
-            const department = document.getElementById('reg-dept').value;
-            const team = document.getElementById('reg-team').value;
-            const role = document.getElementById('reg-role').value;
-            const password = document.getElementById('reg-password').value;
+        const formattedGreeting = userName 
+            ? `Welcome to Perpetual Help Medical Center Internal Website, ${userName}!` 
+            : `Welcome to Perpetual Help Medical Center Internal Website!`;
 
-            const { data, error } = await supabase.auth.signUp({
-                email: email,
-                password: password,
-                options: {
-                    data: {
-                        name: fullName,
-                        department: department,
-                        team: team,
-                        role: role
-                    },
-                    emailRedirectTo: `${BASE_URL}main.html`
-                }
-            });
+        document.getElementById('display-welcome-message').innerText = formattedGreeting;
 
-            if (error) {
-                alert("Registration Failed: " + error.message);
-                return;
-            }
+        wrapper.classList.add('portal-warp');
+        setTimeout(() => {
+            portalOverlay.classList.add('active');
+        }, 300);
 
-            alert("Registration successful! Please check your corporate email for verification.");
-            toggleForm(false);
+        setTimeout(() => {
+            window.location.href = 'main.html';
+        }, 5300);
+    }
+
+    // Handles State Management & CSS Sliding Switch Triggers
+    function toggleView(view) {
+        clearAlert();
+        wrapper.classList.remove('active', 'forgot-active', 'reset-active');
+
+        if (view === 'register') {
+            wrapper.classList.add('active');
+        } else if (view === 'forgot') {
+            wrapper.classList.add('forgot-active');
+        } else if (view === 'reset') {
+            wrapper.classList.add('reset-active');
         }
+    }
 
-        // 3. FORGOT PASSWORD
-        async function handleForgotPassword(e) {
-            e.preventDefault();
-            const email = document.getElementById('forgot-email').value;
+    async function handleLogin(e) {
+        e.preventDefault();
+        clearAlert();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
 
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${BASE_URL}index.html?view=reset`
-            });
-
-            if (error) {
-                alert("Reset Request Failed: " + error.message);
-                return;
-            }
-
-            alert("Password reset link sent to your email.");
-            showLoginFromForgot(e);
+        const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            showAlert(error.message, 'error');
+        } else if (data.user) {
+            await triggerPortalTransition(data.user.id);
         }
+    }
 
-        // 4. UPDATE PASSWORD
-        async function handleUpdatePassword(e) {
-            e.preventDefault();
-            const newPassword = document.getElementById('reset-password').value;
+    async function handleRegister(e) {
+        e.preventDefault();
+        clearAlert();
+        const name = document.getElementById('reg-name').value;
+        const email = document.getElementById('reg-email').value;
+        const department = document.getElementById('reg-dept').value;
+        const team = document.getElementById('reg-team').value || 'General';
+        const role = document.getElementById('reg-role').value;
+        const password = document.getElementById('reg-password').value;
 
-            const { error } = await supabase.auth.updateUser({
-                password: newPassword
-            });
-
-            if (error) {
-                alert("Password Update Failed: " + error.message);
-                return;
-            }
-
-            alert("Password updated successfully! Please log in.");
-            window.location.href = `${BASE_URL}index.html`;
-        }
-
-        // --- PORTAL TRANSITION & SESSION GUARD ---
-        function triggerPortalTransition(name) {
-            const overlay = document.getElementById('portal-overlay');
-            const welcomeText = document.getElementById('display-welcome-message');
-
-            welcomeText.innerText = `Welcome, ${name}! Redirecting...`;
-            overlay.classList.add('active');
-
-            setTimeout(() => {
-                window.location.href = 'main.html';
-            }, 5300);
-        }
-
-        // On Page Load: Check Recovery Hash or Active Session
-        document.addEventListener('DOMContentLoaded', async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const isResetView = urlParams.get('view') === 'reset' || window.location.hash.includes('type=recovery');
-
-            if (isResetView) {
-                wrapper.classList.add('reset-active');
-                return;
-            }
-
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                window.location.href = 'main.html';
+        const { data, error } = await _supabase.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+                emailRedirectTo: `${BASE_URL}main.html`,
+                data: { name, department, team, role }
             }
         });
-    </script>
+
+        if (error) {
+            showAlert(error.message, 'error');
+        } else {
+            document.getElementById('register-form').reset();
+            await triggerPortalTransition(data?.user?.id, name);
+        }
+    }
+
+    async function handleForgotPassword(e) {
+        e.preventDefault();
+        clearAlert();
+        const email = document.getElementById('forgot-email').value;
+        const { error } = await _supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}${window.location.pathname}?view=reset`
+        });
+        if (error) {
+            showAlert(error.message, 'error');
+        } else {
+            showAlert('Password reset link sent to your email!', 'success');
+        }
+    }
+
+    async function handleUpdatePassword(e) {
+        e.preventDefault();
+        clearAlert();
+        const newPassword = document.getElementById('reset-password').value;
+
+        const { data, error } = await _supabase.auth.updateUser({ password: newPassword });
+
+        if (error) {
+            showAlert(error.message, 'error');
+        } else {
+            showAlert("Password updated! Redirecting to sign in...", "success");
+            document.getElementById('reset-form').reset();
+            setTimeout(() => {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                toggleView('login');
+            }, 2000);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('view') === 'reset' || window.location.hash.includes('type=recovery')) {
+            toggleView('reset');
+            return;
+        }
+
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session && !window.location.hash.includes('type=recovery')) {
+            window.location.href = 'main.html';
+        }
+    });
+</script>
 </body>
 </html>

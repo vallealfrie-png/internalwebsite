@@ -212,8 +212,12 @@
           <span><i class="fa-solid fa-bullhorn mr-2"></i> General Broadcast</span>
           <span class="text-[9px] bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded">Public</span>
         </button>
-        <div id="dm-users-list" class="mt-1 space-y-1 max-h-28 overflow-y-auto">
-          <!-- Populated dynamically with active staff -->
+        
+        <div class="my-1 border-t border-slate-200"></div>
+        <span class="block text-[10px] font-bold text-slate-400 uppercase px-2 my-1">Staff Directory</span>
+
+        <div id="dm-users-list" class="space-y-1 max-h-32 overflow-y-auto">
+          <!-- Populated dynamically from public.profiles -->
         </div>
       </div>
 
@@ -308,7 +312,7 @@
     });
   </script>
 
-  <!-- Supabase Auth & Multi-Mode Realtime Chat -->
+  <!-- Supabase Auth, Public Profiles Sync & Multi-Mode Chat -->
   <script>
     const supabaseClient = supabase.createClient(
       'https://kiknpyyxrslvjhdskshx.supabase.co',
@@ -326,7 +330,7 @@
     let realtimeSubscription = null;
 
     function escapeHTML(str) {
-      return String(str)
+      return String(str || '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -402,6 +406,65 @@
       }
     }
 
+    // Upsert current user into public.profiles (Isolated from user_profiles)
+    async function syncChatProfile(user) {
+      const metadata = user.user_metadata || {};
+      const displayName = metadata.name || metadata.full_name || user.email.split('@')[0];
+      const department = metadata.department || 'Staff';
+
+      const { error } = await supabaseClient
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name: displayName,
+          department: department,
+          updated_at: new Date()
+        });
+
+      if (error) console.error('Error syncing chat directory profile:', error.message);
+    }
+
+    // Fetch other staff members from public.profiles
+    async function loadStaffDirectory() {
+      const dmListContainer = document.getElementById('dm-users-list');
+      if (!dmListContainer) return;
+
+      const { data: staff, error } = await supabaseClient
+        .from('profiles')
+        .select('id, name, department')
+        .neq('id', currentUserId)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching chat directory:', error.message);
+        dmListContainer.innerHTML = `<span class="block px-2 py-1 text-[10px] text-slate-400 italic">Unable to load directory</span>`;
+        return;
+      }
+
+      if (!staff || staff.length === 0) {
+        dmListContainer.innerHTML = `<span class="block px-2 py-1 text-[10px] text-slate-400 italic">No other staff available</span>`;
+        return;
+      }
+
+      dmListContainer.innerHTML = staff.map(member => `
+        <button 
+          type="button"
+          onclick="switchToDM('${member.id}', '${escapeHTML(member.name)}')" 
+          class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-200/70 text-slate-700 flex items-center justify-between transition-colors"
+        >
+          <div class="flex items-center space-x-2 truncate">
+            <div class="w-5 h-5 rounded-full bg-phmc-emerald text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+              ${escapeHTML(member.name).substring(0, 2).toUpperCase()}
+            </div>
+            <span class="font-medium truncate text-xs">${escapeHTML(member.name)}</span>
+          </div>
+          <span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">
+            ${escapeHTML(member.department)}
+          </span>
+        </button>
+      `).join('');
+    }
+
     // Switch to General Broadcast Mode
     function switchToBroadcast() {
       activeReceiverId = null;
@@ -451,12 +514,16 @@
       currentUserId = user.id;
       const metadata = user.user_metadata || {};
 
-      currentUserName = metadata.name || user.email.split('@')[0];
+      currentUserName = metadata.name || metadata.full_name || user.email.split('@')[0];
       currentUserDept = metadata.department || 'MAIN';
       const displayDept = metadata.department ? `${metadata.department} (${metadata.team || 'General'})` : 'Internal Staff';
 
       if (document.getElementById('user-display-name')) document.getElementById('user-display-name').innerText = currentUserName;
       if (document.getElementById('user-display-dept')) document.getElementById('user-display-dept').innerText = displayDept;
+
+      // Sync user into isolated public.profiles directory & fetch staff list
+      await syncChatProfile(user);
+      await loadStaffDirectory();
 
       // Setup Realtime Sync & Initial Load
       subscribeToRealtime();
@@ -474,12 +541,12 @@
           if (newMsg.sender_id === currentUserId) return; // Skip own messages handled optimistically
 
           if (activeReceiverId === null) {
-            // General Broadcast view mode: ignore private DMs
+            // Broadcast Mode
             if (!newMsg.receiver_id) {
               appendMessage({ sender: 'Staff Member', text: newMsg.content, timestamp: newMsg.created_at, isSelf: false });
             }
           } else {
-            // Direct Message view mode: render only if sender matches current DM user
+            // Direct Message Mode
             if (newMsg.sender_id === activeReceiverId && newMsg.receiver_id === currentUserId) {
               appendMessage({ sender: activeReceiverName, text: newMsg.content, timestamp: newMsg.created_at, isSelf: false });
             }
@@ -488,15 +555,13 @@
         .subscribe();
     }
 
-    // Load Chat History based on mode
+    // Load Chat History based on active mode
     async function loadMessages() {
       let query = supabaseClient.from('chat_messages').select('*').order('created_at', { ascending: true }).limit(40);
 
       if (activeReceiverId === null) {
-        // Load Public Broadcast Messages
         query = query.is('receiver_id', null).eq('room_id', BROADCAST_ROOM_ID);
       } else {
-        // Load Private Direct Messages between Current User & Target
         query = query.or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${activeReceiverId}),and(sender_id.eq.${activeReceiverId},receiver_id.eq.${currentUserId})`);
       }
 
@@ -544,7 +609,7 @@
 
       if (error) {
         console.error('Supabase Insert Error:', error.message);
-        alert('Failed to send: ' + error.message);
+        alert('Failed to send message: ' + error.message);
       }
     }
 

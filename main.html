@@ -338,21 +338,26 @@
     }
 
     // Helper: Generates a consistent, non-null UUID for 1-on-1 private DMs
-    function getDMRoomId(userIdA, userIdB) {
-      const sorted = [userIdA, userIdB].sort();
-      const combined = `${sorted[0]}_${sorted[1]}`;
-      
-      let hash = 0;
-      for (let i = 0; i < combined.length; i++) {
-        hash = (hash << 5) - hash + combined.charCodeAt(i);
-        hash |= 0;
-      }
-      const hex = Math.abs(hash).toString(16).padStart(8, '0');
-      const uA = sorted[0].replace(/-/g, '').substring(0, 12);
-      const uB = sorted[1].replace(/-/g, '').substring(0, 12);
-      
-      return `${hex.substring(0, 8)}-${uA.substring(0, 4)}-4${uB.substring(0, 3)}-8${uA.substring(4, 7)}-${uB.substring(4, 16)}`;
-    }
+    // Generates a valid, deterministic 36-character UUID v4 for two users in a DM
+function getDMRoomId(userIdA, userIdB) {
+  // 1. Sort IDs so the order is identical regardless of who sends the message
+  const sorted = [userIdA, userIdB].sort();
+  const rawA = sorted[0].replace(/-/g, '');
+  const rawB = sorted[1].replace(/-/g, '');
+  
+  // 2. Combine and pad to ensure we have at least 32 hex characters
+  const combined = (rawA + rawB).slice(0, 32).padEnd(32, '0');
+  
+  // 3. Extract parts and force valid UUID v4 variant & version bits
+  const p1 = combined.substring(0, 8);
+  const p2 = combined.substring(8, 12);
+  const p3 = '4' + combined.substring(13, 16); // Version 4
+  const p4 = '8' + combined.substring(17, 20); // Variant 1 (8, 9, a, or b)
+  const p5 = combined.substring(20, 32);
+  
+  // 4. Return standard 36-char format: 8-4-4-4-12
+  return `${p1}-${p2}-${p3}-${p4}-${p5}`;
+}
 
     function toggleChat() {
       const chatWin = document.getElementById('chat-window');

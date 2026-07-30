@@ -337,6 +337,23 @@
         .replace(/"/g, '&quot;');
     }
 
+    // Helper: Generates a consistent, non-null UUID for 1-on-1 private DMs
+    function getDMRoomId(userIdA, userIdB) {
+      const sorted = [userIdA, userIdB].sort();
+      const combined = `${sorted[0]}_${sorted[1]}`;
+      
+      let hash = 0;
+      for (let i = 0; i < combined.length; i++) {
+        hash = (hash << 5) - hash + combined.charCodeAt(i);
+        hash |= 0;
+      }
+      const hex = Math.abs(hash).toString(16).padStart(8, '0');
+      const uA = sorted[0].replace(/-/g, '').substring(0, 12);
+      const uB = sorted[1].replace(/-/g, '').substring(0, 12);
+      
+      return `${hex.substring(0, 8)}-${uA.substring(0, 4)}-4${uB.substring(0, 3)}-8${uA.substring(4, 7)}-${uB.substring(4, 16)}`;
+    }
+
     function toggleChat() {
       const chatWin = document.getElementById('chat-window');
       const badge = document.getElementById('chat-unread-badge');
@@ -557,12 +574,19 @@
 
     // Load Chat History based on active mode
     async function loadMessages() {
-      let query = supabaseClient.from('chat_messages').select('*').order('created_at', { ascending: true }).limit(40);
+      let query = supabaseClient
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(40);
 
       if (activeReceiverId === null) {
+        // Broadcast Mode
         query = query.is('receiver_id', null).eq('room_id', BROADCAST_ROOM_ID);
       } else {
-        query = query.or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${activeReceiverId}),and(sender_id.eq.${activeReceiverId},receiver_id.eq.${currentUserId})`);
+        // Private DM Mode (queries by calculated non-null room_id)
+        const dmRoomId = getDMRoomId(currentUserId, activeReceiverId);
+        query = query.eq('room_id', dmRoomId);
       }
 
       const { data, error } = await query;
@@ -593,17 +617,17 @@
       // Optimistic Render
       appendMessage({ sender: 'You', text: messageText, timestamp: new Date(), isSelf: true });
 
+      // Determine room_id and receiver_id based on mode
+      const targetRoomId = activeReceiverId === null 
+        ? BROADCAST_ROOM_ID 
+        : getDMRoomId(currentUserId, activeReceiverId);
+
       const payload = {
+        room_id: targetRoomId, // Guaranteed non-null UUID
         sender_id: currentUserId,
+        receiver_id: activeReceiverId, // null for broadcast, receiver UUID for DM
         content: messageText
       };
-
-      if (activeReceiverId === null) {
-        payload.room_id = BROADCAST_ROOM_ID;
-        payload.receiver_id = null;
-      } else {
-        payload.receiver_id = activeReceiverId;
-      }
 
       const { error } = await supabaseClient.from('chat_messages').insert([payload]);
 

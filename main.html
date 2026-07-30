@@ -114,7 +114,7 @@
         <div class="lg:col-span-7 relative flex items-center">
           <div class="relative w-full aspect-[1672/941] rounded-2xl overflow-hidden shadow-2xl border border-slate-700/50">
             
-            <!-- Slides -->
+            <!-- Slides (6 Images) -->
             <div id="carousel-slides" class="relative w-full h-full">
               <div class="carousel-item absolute inset-0 opacity-100">
                 <img src="https://i.imgur.com/7FBBD3a.png" alt="PHMC Facility 1" class="w-full h-full object-cover">
@@ -147,7 +147,7 @@
               <i class="fa-solid fa-chevron-right"></i>
             </button>
 
-            <!-- Indicators (5 dots to match the 5 slides) -->
+            <!-- Indicators (Updated to 6 buttons to match slides) -->
             <div id="carousel-indicators" class="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2 z-10">
               <button class="w-8 h-2 rounded-full bg-white transition-all"></button>
               <button class="w-2 h-2 rounded-full bg-white/50 transition-all"></button>
@@ -373,7 +373,79 @@
     </div>
   </footer>
 
-  <!-- JavaScript Carousel Logic -->
+  <!-- Floating Realtime Chat Widget Container -->
+  <div id="phmc-chat-container" class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <!-- Chat Drawer Window -->
+    <div id="chat-window" class="hidden w-80 sm:w-96 h-[520px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex-col overflow-hidden mb-3 transition-all duration-200">
+      
+      <!-- Chat Header -->
+      <div class="bg-phmc-emerald text-white px-4 py-3 flex items-center justify-between shadow-sm">
+        <div class="flex items-center space-x-3">
+          <div class="relative">
+            <div class="w-9 h-9 rounded-full bg-emerald-700 flex items-center justify-center text-sm font-bold border border-emerald-400/40">
+              <i class="fa-solid fa-hospital-user text-white"></i>
+            </div>
+            <span id="chat-status-dot" class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-phmc-emerald rounded-full"></span>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold leading-tight">Inter-Unit Channel</h4>
+            <p class="text-[10px] text-emerald-100 flex items-center space-x-1">
+              <span id="chat-status-text">Connected • Realtime</span>
+            </p>
+          </div>
+        </div>
+        <button onclick="toggleChat()" class="text-emerald-100 hover:text-white p-1 rounded-lg transition-colors">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Messages Feed -->
+      <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 text-xs">
+        <div class="text-center my-2">
+          <span class="text-[10px] font-medium bg-slate-200/60 text-slate-500 px-2.5 py-1 rounded-full">
+            Secure Internal Broadcast
+          </span>
+        </div>
+      </div>
+
+      <!-- Message Input Bar -->
+      <div class="p-3 bg-white border-t border-slate-200">
+        <form id="chat-form" onsubmit="handleSendMessage(event)" class="flex items-center space-x-2">
+          <input 
+            type="text" 
+            id="chat-input" 
+            placeholder="Type inter-unit message..." 
+            class="flex-1 px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-phmc-emerald/50 focus:bg-white transition-all"
+            autocomplete="off"
+            required
+          />
+          <button 
+            type="submit" 
+            class="w-9 h-9 rounded-xl bg-phmc-emerald hover:bg-emerald-600 text-white flex items-center justify-center transition-all shadow-sm flex-shrink-0"
+          >
+            <i class="fa-solid fa-paper-plane text-xs"></i>
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- Trigger Toggle Button -->
+    <button 
+      id="chat-toggle-btn"
+      onclick="toggleChat()" 
+      class="relative w-14 h-14 rounded-full bg-phmc-emerald hover:bg-emerald-600 text-white shadow-xl flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 group"
+      aria-label="Toggle Inter-Unit Chat"
+    >
+      <i class="fa-solid fa-comments text-xl group-hover:rotate-6 transition-transform"></i>
+      <span id="chat-unread-badge" class="hidden absolute top-0 right-0 flex h-3.5 w-3.5">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 border-2 border-white"></span>
+      </span>
+    </button>
+  </div>
+
+  <!-- Global JavaScript Carousel Logic -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const slides = document.querySelectorAll('#carousel-slides .carousel-item');
@@ -395,7 +467,6 @@
           }
         });
 
-        // Update Indicators
         indicators.forEach((indicator, i) => {
           if (i === index) {
             indicator.className = 'w-8 h-2 rounded-full bg-white transition-all';
@@ -426,303 +497,241 @@
         startTimer();
       }
 
-      // Event Listeners
-      nextBtn.addEventListener('click', () => {
-        nextSlide();
-        resetTimer();
-      });
-
-      prevBtn.addEventListener('click', () => {
-        prevSlide();
-        resetTimer();
-      });
+      if (nextBtn && prevBtn) {
+        nextBtn.addEventListener('click', () => { nextSlide(); resetTimer(); });
+        prevBtn.addEventListener('click', () => { prevSlide(); resetTimer(); });
+      }
 
       indicators.forEach((btn, idx) => {
-        btn.addEventListener('click', () => {
-          showSlide(idx);
-          resetTimer();
-        });
+        btn.addEventListener('click', () => { showSlide(idx); resetTimer(); });
       });
 
-      // Initialize
       startTimer();
     });
   </script>
 
-  <!-- Supabase Authentication & Logout Script -->
+  <!-- Supabase Unified Auth & Realtime Chat Script -->
   <script>
-    const _supabase = supabase.createClient(
+    // Unified Supabase Client Instance
+    const supabaseClient = supabase.createClient(
       'https://kiknpyyxrslvjhdskshx.supabase.co',
       'sb_publishable_NrjGthTKEZZJZaQboWxf5A_Ob6bTY8f'
     );
 
-    // Check session on load & display profile info
+    const DEFAULT_ROOM_ID = '00000000-0000-0000-0000-000000000001';
+    let currentUserId = null;
+    let currentUserDept = 'MAIN';
+    let currentUserName = 'Staff';
+    let isChatOpen = false;
+    let unreadCount = 0;
+
+    // Helper: Escape raw HTML to prevent XSS
+    function escapeHTML(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Toggle Drawer
+    function toggleChat() {
+      const chatWin = document.getElementById('chat-window');
+      const badge = document.getElementById('chat-unread-badge');
+      
+      isChatOpen = !isChatOpen;
+      
+      if (isChatOpen) {
+        chatWin.classList.remove('hidden');
+        chatWin.classList.add('flex');
+        unreadCount = 0;
+        badge.classList.add('hidden');
+        scrollToBottom();
+      } else {
+        chatWin.classList.add('hidden');
+        chatWin.classList.remove('flex');
+      }
+    }
+
+    function scrollToBottom() {
+      const container = document.getElementById('chat-messages');
+      if (container) container.scrollTop = container.scrollHeight;
+    }
+
+    // Render Message
+    function appendMessage({ sender, unit, text, timestamp, isSelf = false }) {
+      const messagesContainer = document.getElementById('chat-messages');
+      if (!messagesContainer) return;
+      
+      const timeFormatted = new Date(timestamp || Date.now()).toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+
+      const safeText = escapeHTML(text);
+      const safeSender = escapeHTML(sender || 'Department Staff');
+      const safeUnit = escapeHTML(unit || 'SYS');
+
+      let msgHTML = '';
+
+      if (isSelf) {
+        msgHTML = `
+          <div class="flex items-end justify-end space-x-2">
+            <div>
+              <div class="bg-phmc-emerald text-white p-3 rounded-2xl rounded-br-none shadow-sm mt-1 max-w-[230px] leading-relaxed break-words">
+                ${safeText}
+              </div>
+              <span class="text-[9px] text-slate-400 block text-right mt-1">${timeFormatted}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        msgHTML = `
+          <div class="flex items-start space-x-2">
+            <div class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-700 flex-shrink-0 border border-slate-300">
+              ${safeUnit.substring(0, 3).toUpperCase()}
+            </div>
+            <div>
+              <div class="flex items-baseline space-x-2">
+                <span class="font-bold text-slate-800 text-[11px]">${safeSender}</span>
+                <span class="text-[9px] text-slate-400">${timeFormatted}</span>
+              </div>
+              <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200/80 shadow-sm mt-1 text-slate-700 max-w-[230px] leading-relaxed break-words">
+                ${safeText}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      messagesContainer.insertAdjacentHTML('beforeend', msgHTML);
+      
+      if (isChatOpen) {
+        scrollToBottom();
+      } else if (!isSelf) {
+        unreadCount++;
+        document.getElementById('chat-unread-badge').classList.remove('hidden');
+      }
+    }
+
+    // On Page Load: Validate Session & Initialize Realtime Chat Listener
     document.addEventListener('DOMContentLoaded', async () => {
-      const { data: { session }, error } = await _supabase.auth.getSession();
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
 
       if (!session || error) {
-        // Redirect unauthorized users to index.html
         window.location.href = 'index.html';
         return;
       }
 
       const user = session.user;
+      currentUserId = user.id;
       const metadata = user.user_metadata || {};
 
-      const userName = metadata.name || user.email.split('@')[0];
-      const userDept = metadata.department ? `${metadata.department} (${metadata.team || 'General'})` : 'Internal Staff';
+      currentUserName = metadata.name || user.email.split('@')[0];
+      currentUserDept = metadata.department || 'MAIN';
+      const displayDept = metadata.department ? `${metadata.department} (${metadata.team || 'General'})` : 'Internal Staff';
 
       const nameEl = document.getElementById('user-display-name');
       const deptEl = document.getElementById('user-display-dept');
 
-      if (nameEl) nameEl.innerText = userName;
-      if (deptEl) deptEl.innerText = userDept;
+      if (nameEl) nameEl.innerText = currentUserName;
+      if (deptEl) deptEl.innerText = displayDept;
+
+      // 1. Load recent message history
+      loadRecentMessages();
+
+      // 2. Subscribe to realtime changes
+      supabaseClient
+        .channel('public:chat_messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
+          const newMsg = payload.new;
+          if (newMsg.sender_id !== currentUserId) {
+            appendMessage({
+              sender: 'Staff Member',
+              unit: 'DEPT',
+              text: newMsg.content,
+              timestamp: newMsg.created_at,
+              isSelf: false
+            });
+          }
+        })
+        .subscribe();
     });
 
-    // Handle Logout
+    // Fetch existing messages from DB
+    async function loadRecentMessages() {
+      const { data, error } = await supabaseClient
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', DEFAULT_ROOM_ID)
+        .order('created_at', { ascending: true })
+        .limit(30);
+
+      if (error) {
+        console.error("Error loading chat history:", error.message);
+        return;
+      }
+
+      data.forEach(msg => {
+        appendMessage({
+          sender: msg.sender_id === currentUserId ? 'You' : 'Staff Member',
+          unit: 'DEPT',
+          text: msg.content,
+          timestamp: msg.created_at,
+          isSelf: msg.sender_id === currentUserId
+        });
+      });
+    }
+
+    // Handle Send Message
+    async function handleSendMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const messageText = input.value.trim();
+      if (!messageText) return;
+
+      input.value = '';
+
+      try {
+        if (!currentUserId) {
+          alert("Session expired. Please log in again.");
+          return;
+        }
+
+        // Optimistic UI update
+        appendMessage({
+          sender: 'You',
+          unit: currentUserDept,
+          text: messageText,
+          timestamp: new Date(),
+          isSelf: true
+        });
+
+        // Insert into database
+        const { error } = await supabaseClient
+          .from('chat_messages')
+          .insert([
+            { 
+              room_id: DEFAULT_ROOM_ID,
+              sender_id: currentUserId,
+              content: messageText
+            }
+          ]);
+
+        if (error) {
+          console.error('Supabase Insert Error:', error.message);
+          alert('Failed to send message: ' + error.message);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+      }
+    }
+
+    // Logout Function
     async function handleLogout() {
-      await _supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       window.location.href = 'index.html';
     }
   </script>
-  <!-- ========================================== -->
-<!-- PHMC FLOATING REALTIME CHAT WIDGET        -->
-<!-- ========================================== -->
-<div id="phmc-chat-container" class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-
-  <!-- Chat Drawer Window -->
-  <div id="chat-window" class="hidden w-80 sm:w-96 h-[520px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex-col overflow-hidden mb-3 transition-all duration-200">
-    
-    <!-- Chat Header -->
-    <div class="bg-phmc-emerald text-white px-4 py-3 flex items-center justify-between shadow-sm">
-      <div class="flex items-center space-x-3">
-        <div class="relative">
-          <div class="w-9 h-9 rounded-full bg-emerald-700 flex items-center justify-center text-sm font-bold border border-emerald-400/40">
-            <i class="fa-solid fa-hospital-user text-white"></i>
-          </div>
-          <span id="chat-status-dot" class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-phmc-emerald rounded-full"></span>
-        </div>
-        <div>
-          <h4 class="text-sm font-bold leading-tight">Inter-Unit Channel</h4>
-          <p class="text-[10px] text-emerald-100 flex items-center space-x-1">
-            <span id="chat-status-text">Connected • Realtime</span>
-          </p>
-        </div>
-      </div>
-      <button onclick="toggleChat()" class="text-emerald-100 hover:text-white p-1 rounded-lg transition-colors">
-        <i class="fa-solid fa-xmark text-lg"></i>
-      </button>
-    </div>
-
-    <!-- Messages Feed -->
-    <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 text-xs">
-      <!-- System Notification -->
-      <div class="text-center my-2">
-        <span class="text-[10px] font-medium bg-slate-200/60 text-slate-500 px-2.5 py-1 rounded-full">
-          Secure Internal Broadcast
-        </span>
-      </div>
-
-      <!-- Messages dynamically render here -->
-    </div>
-
-    <!-- Message Input Bar -->
-    <div class="p-3 bg-white border-t border-slate-200">
-      <form id="chat-form" onsubmit="handleSendMessage(event)" class="flex items-center space-x-2">
-        <input 
-          type="text" 
-          id="chat-input" 
-          placeholder="Type inter-unit message..." 
-          class="flex-1 px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-phmc-emerald/50 focus:bg-white transition-all"
-          autocomplete="off"
-          required
-        />
-        <button 
-          type="submit" 
-          class="w-9 h-9 rounded-xl bg-phmc-emerald hover:bg-emerald-600 text-white flex items-center justify-center transition-all shadow-sm flex-shrink-0"
-        >
-          <i class="fa-solid fa-paper-plane text-xs"></i>
-        </button>
-      </form>
-    </div>
-
-  </div>
-
-  <!-- Trigger Toggle Button -->
-  <button 
-    id="chat-toggle-btn"
-    onclick="toggleChat()" 
-    class="relative w-14 h-14 rounded-full bg-phmc-emerald hover:bg-emerald-600 text-white shadow-xl flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 group"
-    aria-label="Toggle Inter-Unit Chat"
-  >
-    <i class="fa-solid fa-comments text-xl group-hover:rotate-6 transition-transform"></i>
-    <!-- Unread Indicator Badge -->
-    <span id="chat-unread-badge" class="hidden absolute top-0 right-0 flex h-3.5 w-3.5">
-      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-      <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 border-2 border-white"></span>
-    </span>
-  </button>
-
-</div>
-
-<!-- ========================================== -->
-<!-- SCRIPT: UI TOGGLE & SUPABASE REALTIME HOOK -->
-<!-- ========================================== -->
-<script>
-  let isChatOpen = false;
-  let unreadCount = 0;
-
-  // Toggle Drawer Visibility
-  function toggleChat() {
-    const chatWin = document.getElementById('chat-window');
-    const badge = document.getElementById('chat-unread-badge');
-    
-    isChatOpen = !isChatOpen;
-    
-    if (isChatOpen) {
-      chatWin.classList.remove('hidden');
-      chatWin.classList.add('flex');
-      unreadCount = 0;
-      badge.classList.add('hidden');
-      scrollToBottom();
-    } else {
-      chatWin.classList.add('hidden');
-      chatWin.classList.remove('flex');
-    }
-  }
-
-  // Helper: Scroll feed to latest message
-  function scrollToBottom() {
-    const container = document.getElementById('chat-messages');
-    container.scrollTop = container.scrollHeight;
-  }
-
-  // Render Incoming or Outgoing Message Bubbles
-  function appendMessage({ sender, unit, text, timestamp, isSelf = false }) {
-    const messagesContainer = document.getElementById('chat-messages');
-    
-    const timeFormatted = new Date(timestamp || Date.now()).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-
-    let msgHTML = '';
-
-    if (isSelf) {
-      msgHTML = `
-        <div class="flex items-end justify-end space-x-2">
-          <div>
-            <div class="bg-phmc-emerald text-white p-3 rounded-2xl rounded-br-none shadow-sm mt-1 max-w-[230px] leading-relaxed break-words">
-              ${text}
-            </div>
-            <span class="text-[9px] text-slate-400 block text-right mt-1">${timeFormatted}</span>
-          </div>
-        </div>
-      `;
-    } else {
-      msgHTML = `
-        <div class="flex items-start space-x-2">
-          <div class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-700 flex-shrink-0 border border-slate-300">
-            ${unit ? unit.substring(0, 3).toUpperCase() : 'SYS'}
-          </div>
-          <div>
-            <div class="flex items-baseline space-x-2">
-              <span class="font-bold text-slate-800 text-[11px]">${sender || 'Department Staff'}</span>
-              <span class="text-[9px] text-slate-400">${timeFormatted}</span>
-            </div>
-            <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200/80 shadow-sm mt-1 text-slate-700 max-w-[230px] leading-relaxed break-words">
-              ${text}
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    messagesContainer.insertAdjacentHTML('beforeend', msgHTML);
-    
-    if (isChatOpen) {
-      scrollToBottom();
-    } else if (!isSelf) {
-      // Trigger badge dot if chat is closed and new message arrives
-      unreadCount++;
-      document.getElementById('chat-unread-badge').classList.remove('hidden');
-    }
-  }
-
-  // Form Submit Handler
-  async function handleSendMessage(e) {
-    e.preventDefault();
-    const input = document.getElementById('chat-input');
-    const messageText = input.value.trim();
-    if (!messageText) return;
-
-    // 1. Immediate UI update for the sender
-    appendMessage({
-      sender: 'You',
-      unit: 'MAIN',
-      text: messageText,
-      timestamp: new Date(),
-      isSelf: true
-    });
-
-    input.value = '';
-
-    // 2. Supabase DB Insert (Uncomment & adapt when ready)
-    /*
-    if (window.supabase) {
-      const { error } = await supabase
-        .from('unit_messages')
-        .insert([
-          { 
-            message: messageText, 
-            sender_name: 'Current User', // Replace with dynamic user state/session
-            unit_code: 'HIM'            // Replace with active unit scope
-          }
-        ]);
-
-      if (error) console.error('Error broadcasting message:', error);
-    }
-    */
-  }
-
-  // Optional: Supabase Realtime Channel Subscription Hook
-  function initSupabaseChatRealtime() {
-    if (typeof supabase === 'undefined') return;
-
-    supabase
-      .channel('public:unit_messages')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'unit_messages' },
-        (payload) => {
-          const newMsg = payload.new;
-          
-          // Filter out self-sent messages if handled optimistically
-          // if (newMsg.user_id === currentUser.id) return;
-
-          appendMessage({
-            sender: newMsg.sender_name,
-            unit: newMsg.unit_code,
-            text: newMsg.message,
-            timestamp: newMsg.created_at,
-            isSelf: false
-          });
-        }
-      )
-      .subscribe((status) => {
-        const statusDot = document.getElementById('chat-status-dot');
-        if (status === 'SUBSCRIBED') {
-          statusDot.className = "absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-phmc-emerald rounded-full";
-        } else {
-          statusDot.className = "absolute bottom-0 right-0 w-2.5 h-2.5 bg-amber-400 border-2 border-phmc-emerald rounded-full";
-        }
-      });
-  }
-
-  // Initialize listeners on DOM load
-  document.addEventListener('DOMContentLoaded', () => {
-    // initSupabaseChatRealtime();
-  });
-</script>
 </body>
 </html>

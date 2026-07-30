@@ -477,7 +477,7 @@
                     <label>Team / Section</label>
                     <i class='bx bxs-group'></i>
                 </div>
-                <!-- ADDED: Role Dropdown Field -->
+                <!-- Role Dropdown Field -->
                 <div class="input-box">
                     <select id="reg-role" required>
                         <option value="" disabled selected hidden></option>
@@ -560,7 +560,9 @@
         const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
         const BASE_URL = window.location.origin + window.location.pathname.replace("index.html", "");
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Safe initialization without re-declaration collisions
+        window.supabaseClient = window.supabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabase = window.supabaseClient;
 
         const wrapper = document.getElementById('main-wrapper');
 
@@ -575,12 +577,12 @@
         }
 
         function showForgotPassword(e) {
-            e.preventDefault();
+            if (e) e.preventDefault();
             wrapper.classList.add('forgot-active');
         }
 
         function showLoginFromForgot(e) {
-            e.preventDefault();
+            if (e) e.preventDefault();
             wrapper.classList.remove('forgot-active');
         }
 
@@ -617,14 +619,14 @@
             triggerPortalTransition(userName);
         }
 
-        // 2. REGISTER (UPDATED TO CAPTURE ROLE)
+        // 2. REGISTER
         async function handleRegister(e) {
             e.preventDefault();
             const fullName = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value;
             const department = document.getElementById('reg-dept').value;
             const team = document.getElementById('reg-team').value;
-            const role = document.getElementById('reg-role').value; // Captured
+            const role = document.getElementById('reg-role').value;
             const password = document.getElementById('reg-password').value;
 
             const { data, error } = await supabase.auth.signUp({
@@ -635,7 +637,7 @@
                         name: fullName,
                         department: department,
                         team: team,
-                        role: role // Passed into raw_user_meta_data
+                        role: role
                     },
                     emailRedirectTo: `${BASE_URL}main.html`
                 }

@@ -3,582 +3,330 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perpetual Help Medical Center | Staff Portal</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- FontAwesome -->
+    <title>Animated Auth Modal</title>
+    <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Supabase JS SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        phmc: {
-                            gold: '#D4AF37',
-                            'gold-light': '#F4E07B',
-                            'gold-dark': '#AA820A',
-                            navy: '#0B1B3D',
-                            'navy-light': '#162C5B',
-                            accent: '#38BDF8',
-                            emerald: '#10B981',
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-
     <style>
-        /* Modern Glassmorphic Background */
+        :root {
+            --bg-color: #081b29;
+            --main-color: #00eeff;
+            --text-color: #fff;
+            --panel-bg: #0d283d;
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --neon: #00eeff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: #060d19;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(212, 175, 55, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(11, 27, 61, 0.8) 0px, transparent 50%),
-                radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
-            background-attachment: fixed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
-            overflow-x: hidden;
+            background: var(--bg-color);
+            overflow: hidden;
         }
 
-        /* Glass Cards */
-        .glass-card {
-            background: rgba(11, 27, 61, 0.55);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        /* Container Card */
+        .wrapper {
+            position: relative;
+            width: 750px;
+            height: 480px;
+            background: var(--panel-bg);
+            border: 2px solid var(--neon);
+            box-shadow: 0 0 25px rgba(0, 238, 255, 0.3);
+            border-radius: 20px;
+            overflow: hidden;
         }
 
-        .glass-input {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .glass-input:focus {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: #D4AF37;
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
-            outline: none;
-        }
-
-        /* Gold Gradient Elements */
-        .gold-gradient-btn {
-            background: linear-gradient(135deg, #D4AF37 0%, #AA820A 100%);
-            transition: all 0.3s ease;
-        }
-
-        .gold-gradient-btn:hover:not(:disabled) {
-            background: linear-gradient(135deg, #F4E07B 0%, #D4AF37 100%);
-            box-shadow: 0 0 25px rgba(212, 175, 55, 0.4);
-            transform: translateY(-1px);
-        }
-
-        .gold-gradient-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            filter: grayscale(0.4);
-        }
-
-        .gold-gradient-text {
-            background: linear-gradient(135deg, #FFF0BD 0%, #D4AF37 50%, #AA820A 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        /* Form Flipping / View Toggles */
-        .form-view {
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .wrapper .form-box {
+        /* Form Box Mechanics */
+        .form-box {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
             display: flex;
             flex-direction: column;
+            justify-content: center;
+            padding: 40px;
+            background: var(--panel-bg);
+            /* Hardware-accelerated sliding & opacity balance */
+            transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55), 
+                        opacity 0.4s ease-in-out;
+            will-change: transform, opacity;
+        }
+
+        /* Login Side Default State */
+        .form-box.login {
+            left: 0;
+            z-index: 1;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .wrapper.active .form-box.login {
+            transform: translateX(-110%);
+            opacity: 0;
+            z-index: 0;
+            pointer-events: none; /* Prevents hidden input focusing */
+        }
+
+        /* Register Side Default State */
+        .form-box.register {
+            right: 0;
+            transform: translateX(110%);
+            opacity: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .wrapper.active .form-box.register {
+            transform: translateX(0);
+            opacity: 1;
+            z-index: 1;
+            pointer-events: auto;
+        }
+
+        /* Form Elements */
+        h2 {
+            font-size: 32px;
+            color: var(--text-color);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .input-box {
+            position: relative;
             width: 100%;
+            height: 50px;
+            margin: 15px 0;
         }
 
-        /* Portal Transition Effects */
-        .portal-warp {
-            animation: portalWarp 1.2s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+        .input-box input {
+            width: 100%;
+            height: 100%;
+            background: var(--input-bg);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            outline: none;
+            border-radius: 10px;
+            font-size: 16px;
+            color: var(--text-color);
+            padding: 0 45px 0 20px;
+            transition: border-color 0.3s ease;
         }
 
-        @keyframes portalWarp {
-            0% {
-                transform: scale(1) rotate(0deg);
-                opacity: 1;
-                filter: blur(0px);
-            }
-            50% {
-                transform: scale(1.08) rotate(1deg);
-                opacity: 0.8;
-                filter: blur(2px);
-            }
-            100% {
-                transform: scale(0.3) rotate(-10deg);
-                opacity: 0;
-                filter: blur(20px);
-            }
+        .input-box input:focus,
+        .input-box input:valid {
+            border-color: var(--neon);
         }
 
-        /* Heartbeat ECG Line Animation */
-        .ecg-line {
-            stroke-dasharray: 1000;
-            stroke-dashoffset: 1000;
-            animation: dash 2.5s linear infinite;
+        .input-box i {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.5);
+            transition: color 0.3s ease;
         }
 
-        @keyframes dash {
-            to {
-                stroke-dashoffset: 0;
-            }
+        .input-box input:focus ~ i,
+        .input-box input:valid ~ i {
+            color: var(--neon);
+        }
+
+        .btn {
+            width: 100%;
+            height: 45px;
+            background: var(--neon);
+            border: none;
+            outline: none;
+            border-radius: 10px;
+            box-shadow: 0 0 10px var(--neon);
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--bg-color);
+            font-weight: 600;
+            margin-top: 10px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Overlay Sliding Overlay Panel */
+        .toggle-panel {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(135deg, #001f3f, #081b29);
+            border-left: 2px solid var(--neon);
+            box-shadow: -10px 0 25px rgba(0, 238, 255, 0.2);
+            /* Fluid exponential slide movement */
+            transition: transform 0.6s cubic-bezier(0.77, 0, 0.175, 1);
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            text-align: center;
+            will-change: transform;
+        }
+
+        .wrapper.active .toggle-panel {
+            transform: translateX(-100%);
+            border-left: none;
+            border-right: 2px solid var(--neon);
+            box-shadow: 10px 0 25px rgba(0, 238, 255, 0.2);
+        }
+
+        .toggle-panel h1 {
+            font-size: 28px;
+            color: var(--text-color);
+            margin-bottom: 10px;
+        }
+
+        .toggle-panel p {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 20px;
+        }
+
+        .toggle-panel .btn-outline {
+            width: 160px;
+            height: 40px;
+            background: transparent;
+            border: 2px solid var(--neon);
+            color: var(--neon);
+            box-shadow: none;
+        }
+
+        .toggle-panel .btn-outline:hover {
+            background: var(--neon);
+            color: var(--bg-color);
+            box-shadow: 0 0 10px var(--neon);
+        }
+
+        /* Panel Content Cross-Fade Toggle */
+        .toggle-text {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: opacity 0.3s ease, transform 0.4s ease;
+        }
+
+        .toggle-text.register-prompt {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .toggle-text.login-prompt {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+
+        .wrapper.active .toggle-text.register-prompt {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+
+        .wrapper.active .toggle-text.login-prompt {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 sm:p-6 relative">
+<body>
 
-    <!-- Background Ambient Glows -->
-    <div class="fixed top-1/4 left-10 w-96 h-96 bg-phmc-gold/10 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="fixed bottom-1/4 right-10 w-96 h-96 bg-phmc-accent/10 rounded-full blur-3xl pointer-events-none"></div>
-
-    <!-- Main Container -->
-    <div id="main-wrapper" class="wrapper w-full max-w-md relative z-10">
-        
-        <!-- Glass Card Box -->
-        <div class="glass-card rounded-3xl p-8 relative overflow-hidden transition-all duration-500">
-            
-            <!-- Alert Banner Container -->
-            <div id="alert-container" class="hidden mb-6 p-4 rounded-xl text-xs font-medium flex items-center justify-between border transition-all duration-300">
-                <div class="flex items-center gap-3">
-                    <i id="alert-icon" class="fa-solid text-base"></i>
-                    <span id="alert-text">Notification message</span>
+    <div class="wrapper" id="main-wrapper">
+        <!-- LOGIN FORM -->
+        <div class="form-box login">
+            <form onsubmit="handleAuth(event, 'login')">
+                <h2>Login</h2>
+                <div class="input-box">
+                    <input type="email" id="login-email" required>
+                    <i class="fa-solid fa-envelope"></i>
                 </div>
-                <button onclick="clearAlert()" class="opacity-60 hover:opacity-100 text-white">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-
-            <!-- Brand Header -->
-            <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-phmc-navy-light/80 border border-phmc-gold/30 mb-4 shadow-inner">
-                    <i class="fa-solid fa-hospital-user text-2xl gold-gradient-text"></i>
+                <div class="input-box">
+                    <input type="password" id="login-password" required>
+                    <i class="fa-solid fa-lock"></i>
                 </div>
-                <h1 class="text-2xl font-bold text-white tracking-wide">PERPETUAL HELP</h1>
-                <p class="text-xs font-semibold tracking-widest text-phmc-gold uppercase mt-1">Medical Center | Staff Portal</p>
-            </div>
-
-            <!-- LOGIN VIEW -->
-            <div id="view-login" class="form-view">
-                <div class="mb-6">
-                    <h2 class="text-xl font-bold text-white">Welcome Back</h2>
-                    <p class="text-xs text-slate-400 mt-1">Sign in with your healthcare credentials</p>
-                </div>
-
-                <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Email Address</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="email" id="login-email" required placeholder="staff@perpetualhelpmed.com" class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-sm">
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between items-center mb-1.5">
-                            <label class="block text-xs font-medium text-slate-300">Password</label>
-                            <button type="button" onclick="switchView('forgot')" class="text-xs text-phmc-gold hover:underline">Forgot password?</button>
-                        </div>
-                        <div class="relative">
-                            <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="password" id="login-password" required placeholder="••••••••" class="glass-input w-full pl-10 pr-10 py-3 rounded-xl text-sm">
-                            <button type="button" onclick="togglePasswordVisibility('login-password', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
-                                <i class="fa-solid fa-eye text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="btn-login" class="gold-gradient-btn w-full py-3.5 rounded-xl font-bold text-phmc-navy text-sm shadow-lg mt-2 flex items-center justify-center gap-2">
-                        <span>Sign In</span>
-                        <i class="fa-solid fa-arrow-right text-xs"></i>
-                    </button>
-                </form>
-
-                <div class="mt-6 text-center text-xs text-slate-400">
-                    Need account access? 
-                    <button onclick="switchView('register')" class="text-phmc-gold font-bold hover:underline ml-1">Register Profile</button>
-                </div>
-            </div>
-
-            <!-- REGISTER VIEW -->
-            <div id="view-register" class="form-view hidden">
-                <div class="mb-6">
-                    <h2 class="text-xl font-bold text-white">Create Account</h2>
-                    <p class="text-xs text-slate-400 mt-1">Register your internal staff details</p>
-                </div>
-
-                <form id="form-register" onsubmit="handleRegister(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Full Name</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="reg-name" required placeholder="Juan Dela Cruz" class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-sm">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Department</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-building-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="reg-department" required placeholder="e.g., Nursing, Finance, IT" class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-sm">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Team / Assignment</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-users absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="reg-team" required placeholder="e.g., Team Alpha, Ward 3" class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-sm">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Hospital Email</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="email" id="reg-email" required placeholder="staff@perpetualhelpmed.com" class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-sm">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="password" id="reg-password" required minlength="6" placeholder="At least 6 characters" class="glass-input w-full pl-10 pr-10 py-3 rounded-xl text-sm">
-                            <button type="button" onclick="togglePasswordVisibility('reg-password', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
-                                <i class="fa-solid fa-eye text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="btn-register" class="gold-gradient-btn w-full py-3.5 rounded-xl font-bold text-phmc-navy text-sm shadow-lg mt-2 flex items-center justify-center gap-2">
-                        <span>Register Profile</span>
-                        <i class="fa-solid fa-user-plus text-xs"></i>
-                    </button>
-                </form>
-
-                <div class="mt-6 text-center text-xs text-slate-400">
-                    Already registered? 
-                    <button onclick="switchView('login')" class="text-phmc-gold font-bold hover:underline ml-1">Sign In</button>
-                </div>
-            </div>
-
-            <!-- FORGOT PASSWORD VIEW -->
-            <div id="view-forgot" class="form-view hidden">
-                <div class="mb-6">
-                    <h2 class="text-xl font-bold text-white">Reset Password</h2>
-                    <p class="text-xs text-slate-400 mt-1">We will send a reset link to your email</p>
-                </div>
-
-                <form id="form-forgot" onsubmit="handleForgot(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Registered Email</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="email" id="forgot-email" required placeholder="staff@perpetualhelpmed.com" class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-sm">
-                        </div>
-                    </div>
-
-                    <button type="submit" id="btn-forgot" class="gold-gradient-btn w-full py-3.5 rounded-xl font-bold text-phmc-navy text-sm shadow-lg mt-2 flex items-center justify-center gap-2">
-                        <span>Send Recovery Link</span>
-                        <i class="fa-solid fa-paper-plane text-xs"></i>
-                    </button>
-                </form>
-
-                <div class="mt-6 text-center text-xs text-slate-400">
-                    Remembered password? 
-                    <button onclick="switchView('login')" class="text-phmc-gold font-bold hover:underline ml-1">Back to Login</button>
-                </div>
-            </div>
-
-            <!-- RESET PASSWORD VIEW (Triggered via link redirect) -->
-            <div id="view-reset" class="form-view hidden">
-                <div class="mb-6">
-                    <h2 class="text-xl font-bold text-white">Set New Password</h2>
-                    <p class="text-xs text-slate-400 mt-1">Enter your new secure password below</p>
-                </div>
-
-                <form id="form-reset" onsubmit="handleResetPassword(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">New Password</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="password" id="reset-password" required minlength="6" placeholder="••••••••" class="glass-input w-full pl-10 pr-10 py-3 rounded-xl text-sm">
-                            <button type="button" onclick="togglePasswordVisibility('reset-password', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
-                                <i class="fa-solid fa-eye text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="btn-reset" class="gold-gradient-btn w-full py-3.5 rounded-xl font-bold text-phmc-navy text-sm shadow-lg mt-2 flex items-center justify-center gap-2">
-                        <span>Update Password</span>
-                        <i class="fa-solid fa-shield-halved text-xs"></i>
-                    </button>
-                </form>
-            </div>
-
+                <button type="submit" class="btn">Sign In</button>
+            </form>
         </div>
 
-        <!-- Footer Accent -->
-        <div class="text-center mt-6 text-xs text-slate-500">
-            &copy; Perpetual Help Medical Center. All rights reserved.
+        <!-- REGISTER FORM -->
+        <div class="form-box register">
+            <form onsubmit="handleAuth(event, 'register')">
+                <h2>Registration</h2>
+                <div class="input-box">
+                    <input type="text" id="reg-name" required>
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="input-box">
+                    <input type="email" id="reg-email" required>
+                    <i class="fa-solid fa-envelope"></i>
+                </div>
+                <div class="input-box">
+                    <input type="password" id="reg-password" required>
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <button type="submit" class="btn">Sign Up</button>
+            </form>
         </div>
-    </div>
 
-    <!-- Fullscreen Warp Overlay (Transition) -->
-    <div id="portal-overlay" class="fixed inset-0 bg-phmc-navy z-50 opacity-0 pointer-events-none transition-opacity duration-700 flex flex-col items-center justify-center">
-        <div class="text-center">
-            <svg class="w-24 h-12 mx-auto mb-4" viewBox="0 0 100 50">
-                <path class="ecg-line" d="M0,25 L30,25 L35,10 L40,40 L45,15 L50,30 L55,25 L100,25" fill="none" stroke="#D4AF37" stroke-width="3" />
-            </svg>
-            <h3 class="text-xl font-bold text-white tracking-widest uppercase">Entering Portal</h3>
-            <p id="portal-welcome-text" class="text-xs text-phmc-gold mt-2 font-medium">Authenticating credentials...</p>
+        <!-- SLIDING OVERLAY PANEL -->
+        <div class="toggle-panel">
+            <div class="toggle-text register-prompt">
+                <h1>Hello, Friend!</h1>
+                <p>Register with your personal details to use all of site features</p>
+                <button class="btn btn-outline" onclick="toggleView(true)">Sign Up</button>
+            </div>
+            <div class="toggle-text login-prompt">
+                <h1>Welcome Back!</h1>
+                <p>Enter your personal details to use all of site features</p>
+                <button class="btn btn-outline" onclick="toggleView(false)">Sign In</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- SUPABASE INITIALIZATION ---
-        const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT.supabase.co';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const wrapper = document.getElementById('main-wrapper');
 
-        const BASE_URL = window.location.origin + window.location.pathname.replace('index.html', '');
-
-        // --- ON PAGE LOAD ---
-        window.addEventListener('DOMContentLoaded', async () => {
-            // Check recovery hash link redirect
-            if (window.location.hash && window.location.hash.includes('type=recovery')) {
-                switchView('reset');
-                showAlert('Auth session verified. Please set your new password.', 'info');
-                return;
-            }
-
-            // Check active session
-            const { data: { session } } = await _supabase.auth.getSession();
-            if (session) {
-                triggerPortalTransition(session.user.id);
-            }
-        });
-
-        // --- VIEW SWITCHER ---
-        function switchView(viewName) {
-            clearAlert();
-            const views = ['login', 'register', 'forgot', 'reset'];
-            views.forEach(v => {
-                const el = document.getElementById(`view-${v}`);
-                if (v === viewName) {
-                    el.classList.remove('hidden');
-                } else {
-                    el.classList.add('hidden');
-                }
-            });
-        }
-
-        // --- PASSWORD VISIBILITY TOGGLE ---
-        function togglePasswordVisibility(inputId, btn) {
-            const input = document.getElementById(inputId);
-            const icon = btn.querySelector('i');
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
+        // Handles view sliding state toggle safely
+        function toggleView(isRegister) {
+            if (isRegister) {
+                wrapper.classList.add('active');
             } else {
-                input.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
+                wrapper.classList.remove('active');
             }
         }
 
-        // --- ALERT SYSTEM ---
-        function showAlert(message, type = 'error') {
-            const container = document.getElementById('alert-container');
-            const icon = document.getElementById('alert-icon');
-            const text = document.getElementById('alert-text');
-
-            text.innerText = message;
-            container.className = "mb-6 p-4 rounded-xl text-xs font-medium flex items-center justify-between border transition-all duration-300 ";
-
-            if (type === 'error') {
-                container.classList.add('bg-red-500/10', 'border-red-500/30', 'text-red-300');
-                icon.className = "fa-solid fa-circle-exclamation text-red-400 text-base";
-            } else if (type === 'success') {
-                container.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-300');
-                icon.className = "fa-solid fa-circle-check text-emerald-400 text-base";
+        // Mock auth submission handler
+        function handleAuth(event, mode) {
+            event.preventDefault();
+            if (mode === 'login') {
+                const email = document.getElementById('login-email').value;
+                console.log('Logging in user:', email);
             } else {
-                container.classList.add('bg-sky-500/10', 'border-sky-500/30', 'text-sky-300');
-                icon.className = "fa-solid fa-circle-info text-sky-400 text-base";
+                const name = document.getElementById('reg-name').value;
+                const email = document.getElementById('reg-email').value;
+                console.log('Registering user:', name, email);
             }
-
-            container.classList.remove('hidden');
-        }
-
-        function clearAlert() {
-            document.getElementById('alert-container').classList.add('hidden');
-        }
-
-        // --- BUTTON LOADING STATE HELPER ---
-        function toggleButtonLoading(btnId, isLoading, normalText) {
-            const btn = document.getElementById(btnId);
-            if (!btn) return;
-            btn.disabled = isLoading;
-            if (isLoading) {
-                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-xs"></i><span>Processing...</span>`;
-            } else {
-                btn.innerHTML = normalText;
-            }
-        }
-
-        // --- LOGIN HANDLER ---
-        async function handleLogin(e) {
-            e.preventDefault();
-            clearAlert();
-            toggleButtonLoading('btn-login', true);
-
-            const email = document.getElementById('login-email').value.trim();
-            const password = document.getElementById('login-password').value;
-
-            const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                showAlert(error.message, 'error');
-                toggleButtonLoading('btn-login', false, `<span>Sign In</span><i class="fa-solid fa-arrow-right text-xs"></i>`);
-            } else if (data.user) {
-                await triggerPortalTransition(data.user.id);
-            }
-        }
-
-        // --- REGISTER HANDLER ---
-        async function handleRegister(e) {
-            e.preventDefault();
-            clearAlert();
-            toggleButtonLoading('btn-register', true);
-
-            const name = document.getElementById('reg-name').value.trim();
-            const department = document.getElementById('reg-department').value.trim();
-            const team = document.getElementById('reg-team').value.trim();
-            const email = document.getElementById('reg-email').value.trim();
-            const password = document.getElementById('reg-password').value;
-
-            const { data, error } = await _supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    emailRedirectTo: `${BASE_URL}main.html`,
-                    data: { name, department, team }
-                }
-            });
-
-            if (error) {
-                showAlert(error.message, 'error');
-                toggleButtonLoading('btn-register', false, `<span>Register Profile</span><i class="fa-solid fa-user-plus text-xs"></i>`);
-            } else {
-                if (data.session) {
-                    await triggerPortalTransition(data.user.id, name);
-                } else {
-                    showAlert('Registration link sent! Please check your email to confirm registration.', 'success');
-                    toggleButtonLoading('btn-register', false, `<span>Register Profile</span><i class="fa-solid fa-user-plus text-xs"></i>`);
-                }
-            }
-        }
-
-        // --- FORGOT PASSWORD HANDLER ---
-        async function handleForgot(e) {
-            e.preventDefault();
-            clearAlert();
-            toggleButtonLoading('btn-forgot', true);
-
-            const email = document.getElementById('forgot-email').value.trim();
-
-            const { error } = await _supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${BASE_URL}index.html#type=recovery`
-            });
-
-            if (error) {
-                showAlert(error.message, 'error');
-            } else {
-                showAlert('Password reset link sent! Check your inbox.', 'success');
-            }
-            toggleButtonLoading('btn-forgot', false, `<span>Send Recovery Link</span><i class="fa-solid fa-paper-plane text-xs"></i>`);
-        }
-
-        // --- RESET PASSWORD HANDLER ---
-        async function handleResetPassword(e) {
-            e.preventDefault();
-            clearAlert();
-            toggleButtonLoading('btn-reset', true);
-
-            const newPassword = document.getElementById('reset-password').value;
-
-            const { error } = await _supabase.auth.updateUser({ password: newPassword });
-
-            if (error) {
-                showAlert(error.message, 'error');
-                toggleButtonLoading('btn-reset', false, `<span>Update Password</span><i class="fa-solid fa-shield-halved text-xs"></i>`);
-            } else {
-                showAlert('Password updated successfully! Redirecting...', 'success');
-                setTimeout(() => {
-                    window.location.href = 'main.html';
-                }, 1500);
-            }
-        }
-
-        // --- PORTAL TRANSITION ANIMATION ---
-        async function triggerPortalTransition(userId, fallbackName = '') {
-            const wrapper = document.getElementById('main-wrapper');
-            const overlay = document.getElementById('portal-overlay');
-            const welcomeText = document.getElementById('portal-welcome-text');
-
-            // Attempt to get user name
-            let userName = fallbackName;
-            if (!userName) {
-                const { data: profile } = await _supabase
-                    .from('user_profiles')
-                    .select('name')
-                    .eq('id', userId)
-                    .single();
-                
-                if (profile?.name) userName = profile.name;
-            }
-
-            if (userName) {
-                welcomeText.innerText = `Welcome, ${userName}`;
-            }
-
-            // Fire 3D warp transition
-            wrapper.classList.add('portal-warp');
-
-            setTimeout(() => {
-                overlay.classList.remove('pointer-events-none');
-                overlay.classList.add('opacity-100');
-            }, 500);
-
-            setTimeout(() => {
-                window.location.href = 'main.html';
-            }, 1600);
         }
     </script>
 </body>

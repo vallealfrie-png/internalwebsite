@@ -377,6 +377,39 @@ async function ensureDMRoomExists(dmRoomId, partnerName) {
   }
 }
 
+    // Generates a deterministic 36-char UUID v4 for any department name
+function getDeptRoomId(deptName) {
+  const cleanDept = (deptName || 'GENERAL').toUpperCase().trim();
+  let hash = 0;
+  for (let i = 0; i < cleanDept.length; i++) {
+    hash = (hash << 5) - hash + cleanDept.charCodeAt(i);
+    hash |= 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(12, '0');
+  
+  // Standard 8-4-4-4-12 UUID format
+  return `00000000-0000-4000-8000-${hex.substring(0, 12)}`;
+}
+
+// Ensures the department room exists in the rooms table
+async function ensureDeptRoomExists(deptName) {
+  const deptRoomId = getDeptRoomId(deptName);
+  const { error } = await supabaseClient
+    .from('rooms') // Change to 'chat_rooms' if that is your table name
+    .upsert([
+      {
+        id: deptRoomId,
+        name: `${deptName.toUpperCase()} Department Chat`,
+        is_direct: false
+      }
+    ], { onConflict: 'id' });
+
+  if (error) {
+    console.warn('Note on dept room upsert:', error.message);
+  }
+  return deptRoomId;
+}
+    
     function toggleChat() {
       const chatWin = document.getElementById('chat-window');
       const badge = document.getElementById('chat-unread-badge');
@@ -466,45 +499,105 @@ async function ensureDMRoomExists(dmRoomId, partnerName) {
 
     // Fetch other staff members from public.profiles
     async function loadStaffDirectory() {
-      const dmListContainer = document.getElementById('dm-users-list');
-      if (!dmListContainer) return;
+  const dmListContainer = document.getElementById('dm-users-list');
+  if (!dmListContainer) return;
 
-      const { data: staff, error } = await supabaseClient
-        .from('profiles')
-        .select('id, name, department')
-        .neq('id', currentUserId)
-        .order('name', { ascending: true });
+  // 1. Render Department Group Chat Option at the top
+  const deptRoomId = getDeptRoomId(currentUserDept);
+  let htmlContent = `
+    <div class="mb-2 pb-2 border-b border-slate-200">
+      <span class="block text-[10px] font-bold text-slate-400 uppercase px-2 mb-1">Department Group Chat</span>
+      <button 
+        type="button"
+        onclick="switchToDeptChat('${currentUserDept}')" 
+        class="w-full text-left px-2 py-1.5 rounded hover:bg-emerald-50 text-emerald-800 font-semibold flex items-center justify-between transition-colors"
+      >
+        <span class="truncate"><i class="fa-solid fa-users-gear mr-2 text-phmc-emerald"></i> ${escapeHTML(currentUserDept)} Dept</span>
+        <span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold ml-2">Team GC</span>
+      </button>
+    </div>
+    <span class="block text-[10px] font-bold text-slate-400 uppercase px-2 my-1">Staff Directory</span>
+  `;
 
-      if (error) {
-        console.error('Error fetching chat directory:', error.message);
-        dmListContainer.innerHTML = `<span class="block px-2 py-1 text-[10px] text-slate-400 italic">Unable to load directory</span>`;
-        return;
-      }
+  // 2. Fetch Other Staff
+  const { data: staff, error } = await supabaseClient
+    .from('profiles')
+    .select('id, name, department')
+    .neq('id', currentUserId)
+    .order('name', { ascending: true });
 
-      if (!staff || staff.length === 0) {
-        dmListContainer.innerHTML = `<span class="block px-2 py-1 text-[10px] text-slate-400 italic">No other staff available</span>`;
-        return;
-      }
-
-      dmListContainer.innerHTML = staff.map(member => `
-        <button 
-          type="button"
-          onclick="switchToDM('${member.id}', '${escapeHTML(member.name)}')" 
-          class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-200/70 text-slate-700 flex items-center justify-between transition-colors"
-        >
-          <div class="flex items-center space-x-2 truncate">
-            <div class="w-5 h-5 rounded-full bg-phmc-emerald text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
-              ${escapeHTML(member.name).substring(0, 2).toUpperCase()}
-            </div>
-            <span class="font-medium truncate text-xs">${escapeHTML(member.name)}</span>
+  if (error || !staff || staff.length === 0) {
+    htmlContent += `<span class="block px-2 py-1 text-[10px] text-slate-400 italic">No other staff available</span>`;
+  } else {
+    htmlContent += staff.map(member => `
+      <button 
+        type="button"
+        onclick="switchToDM('${member.id}', '${escapeHTML(member.name)}')" 
+        class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-200/70 text-slate-700 flex items-center justify-between transition-colors"
+      >
+        <div class="flex items-center space-x-2 truncate">
+          <div class="w-5 h-5 rounded-full bg-phmc-emerald text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+            ${escapeHTML(member.name).substring(0, 2).toUpperCase()}
           </div>
-          <span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">
-            ${escapeHTML(member.department)}
-          </span>
-        </button>
-      `).join('');
-    }
+          <span class="font-medium truncate text-xs">${escapeHTML(member.name)}</span>
+        </div>
+        <span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">
+          ${escapeHTML(member.department)}
+        </span>
+      </button>
+    `).join('');
+  }
 
+  dmListContainer.innerHTML = htmlContent;
+}
+
+    let isDeptChatMode = false;
+
+// Switch to Department Group Chat Mode
+async function switchToDeptChat(deptName) {
+  activeReceiverId = null;
+  isDeptChatMode = true;
+  
+  document.getElementById('chat-title').innerText = `${deptName} Dept Chat`;
+  document.getElementById('chat-subtitle').innerText = 'Department Group Channel';
+  document.getElementById('chat-mode-badge').innerText = `${deptName} Team Channel`;
+  document.getElementById('chat-mode-icon').className = 'fa-solid fa-users text-white';
+  document.getElementById('dm-selector-menu').classList.add('hidden');
+
+  // Auto-create room record in rooms table if it doesn't exist
+  await ensureDeptRoomExists(deptName);
+  
+  clearAndReloadMessages();
+}
+
+// Update switchToBroadcast to reset department flag
+function switchToBroadcast() {
+  activeReceiverId = null;
+  isDeptChatMode = false; // Reset flag
+  activeReceiverName = '';
+  document.getElementById('chat-title').innerText = 'General Broadcast';
+  document.getElementById('chat-subtitle').innerText = 'All-Staff Broadcast Channel';
+  document.getElementById('chat-mode-badge').innerText = 'Broadcast Channel';
+  document.getElementById('chat-mode-icon').className = 'fa-solid fa-hospital-user text-white';
+  document.getElementById('dm-selector-menu').classList.add('hidden');
+  
+  clearAndReloadMessages();
+}
+
+// Update switchToDM to reset department flag
+function switchToDM(userId, userName) {
+  activeReceiverId = userId;
+  isDeptChatMode = false; // Reset flag
+  activeReceiverName = userName;
+  document.getElementById('chat-title').innerText = userName;
+  document.getElementById('chat-subtitle').innerText = '1-on-1 Direct Message';
+  document.getElementById('chat-mode-badge').innerText = `Private DM with ${userName}`;
+  document.getElementById('chat-mode-icon').className = 'fa-solid fa-lock text-white';
+  document.getElementById('dm-selector-menu').classList.add('hidden');
+  
+  clearAndReloadMessages();
+}
+    
     // Switch to General Broadcast Mode
     function switchToBroadcast() {
       activeReceiverId = null;
@@ -596,64 +689,68 @@ async function ensureDMRoomExists(dmRoomId, partnerName) {
     }
 
     // Load Chat History based on active mode
-    async function loadMessages() {
-      let query = supabaseClient
-        .from('chat_messages')
-        .select('*')
-        .order('created_at', { ascending: true })
-        .limit(40);
+    // Fetch History
+async function loadMessages() {
+  let query = supabaseClient
+    .from('chat_messages')
+    .select('*')
+    .order('created_at', { ascending: true })
+    .limit(40);
 
-      if (activeReceiverId === null) {
-        // Broadcast Mode
-        query = query.is('receiver_id', null).eq('room_id', BROADCAST_ROOM_ID);
-      } else {
-        // Private DM Mode (queries by calculated non-null room_id)
-        const dmRoomId = getDMRoomId(currentUserId, activeReceiverId);
-        query = query.eq('room_id', dmRoomId);
-      }
+  if (isDeptChatMode) {
+    // Department Group Chat Mode
+    const deptRoomId = getDeptRoomId(currentUserDept);
+    query = query.eq('room_id', deptRoomId);
+  } else if (activeReceiverId === null) {
+    // General Broadcast Mode
+    query = query.is('receiver_id', null).eq('room_id', BROADCAST_ROOM_ID);
+  } else {
+    // Direct Message Mode
+    const dmRoomId = getDMRoomId(currentUserId, activeReceiverId);
+    query = query.eq('room_id', dmRoomId);
+  }
 
-      const { data, error } = await query;
-      if (error) {
-        console.error("Error loading chat history:", error.message);
-        return;
-      }
+  const { data, error } = await query;
+  if (error) {
+    console.error("Error loading chat history:", error.message);
+    return;
+  }
 
-      data.forEach(msg => {
-        appendMessage({
-          sender: msg.sender_id === currentUserId ? 'You' : (activeReceiverName || 'Staff Member'),
-          text: msg.content,
-          timestamp: msg.created_at,
-          isSelf: msg.sender_id === currentUserId
-        });
-      });
-    }
+  data.forEach(msg => {
+    appendMessage({
+      sender: msg.sender_id === currentUserId ? 'You' : (activeReceiverName || 'Staff Member'),
+      text: msg.content,
+      timestamp: msg.created_at,
+      isSelf: msg.sender_id === currentUserId
+    });
+  });
+}
 
-    // Send Message
-    async function handleSendMessage(e) {
+// Send Message
+async function handleSendMessage(e) {
   e.preventDefault();
   const input = document.getElementById('chat-input');
   const messageText = input.value.trim();
   if (!messageText) return;
 
   input.value = '';
-
-  // Optimistic Render
   appendMessage({ sender: 'You', text: messageText, timestamp: new Date(), isSelf: true });
 
-  // Determine target room ID
-  const targetRoomId = activeReceiverId === null 
-    ? BROADCAST_ROOM_ID 
-    : getDMRoomId(currentUserId, activeReceiverId);
-
-  // If sending a DM, ensure the room exists in the rooms table first
-  if (activeReceiverId !== null) {
+  // Calculate target room_id
+  let targetRoomId;
+  if (isDeptChatMode) {
+    targetRoomId = await ensureDeptRoomExists(currentUserDept);
+  } else if (activeReceiverId === null) {
+    targetRoomId = BROADCAST_ROOM_ID;
+  } else {
+    targetRoomId = getDMRoomId(currentUserId, activeReceiverId);
     await ensureDMRoomExists(targetRoomId, activeReceiverName);
   }
 
   const payload = {
     room_id: targetRoomId,
     sender_id: currentUserId,
-    receiver_id: activeReceiverId,
+    receiver_id: isDeptChatMode ? null : activeReceiverId,
     content: messageText
   };
 

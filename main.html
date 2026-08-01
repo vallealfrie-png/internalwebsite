@@ -215,9 +215,8 @@
         </button>
         
         <div class="my-1 border-t border-slate-200"></div>
-        <span class="block text-[10px] font-bold text-slate-400 uppercase px-2 my-1">Staff Directory</span>
 
-        <div id="dm-users-list" class="space-y-1 max-h-32 overflow-y-auto">
+        <div id="dm-users-list" class="space-y-1 max-h-36 overflow-y-auto">
           <!-- Populated dynamically from public.profiles -->
         </div>
       </div>
@@ -268,439 +267,484 @@
   </div>
 
   <!-- Carousel Logic Script -->
-  <!-- Supabase Auth, Public Profiles Sync & Multi-Mode Chat -->
-<script>
-  const supabaseClient = supabase.createClient(
-    'https://kiknpyyxrslvjhdskshx.supabase.co',
-    'sb_publishable_NrjGthTKEZZJZaQboWxf5A_Ob6bTY8f'
-  );
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const slides = document.querySelectorAll('#carousel-slides .carousel-item');
+      const indicators = document.querySelectorAll('#carousel-indicators button');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      let currentIndex = 0;
+      let slideInterval;
 
-  const BROADCAST_ROOM_ID = '00000000-0000-0000-0000-000000000001';
-  let currentUserId = null;
-  let currentUserDept = 'MAIN';
-  let currentUserName = 'Staff';
-  let activeReceiverId = null; // null = General Broadcast or Dept Mode
-  let activeReceiverName = '';
-  let isDeptChatMode = false;  // Active state for Department GC
-  let isChatOpen = false;
-  let unreadCount = 0;
-  let realtimeSubscription = null;
-  
-  // Cache to map user UUIDs to display names
-  let staffProfileMap = {};
-
-  function escapeHTML(str) {
-    return String(str || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  // Deterministic 36-character UUID v4 for 1-on-1 private DMs
-  function getDMRoomId(userIdA, userIdB) {
-    const sorted = [userIdA, userIdB].sort();
-    const rawA = sorted[0].replace(/-/g, '');
-    const rawB = sorted[1].replace(/-/g, '');
-    
-    const combined = (rawA + rawB).slice(0, 32).padEnd(32, '0');
-    
-    const p1 = combined.substring(0, 8);
-    const p2 = combined.substring(8, 12);
-    const p3 = '4' + combined.substring(13, 16);
-    const p4 = '8' + combined.substring(17, 20);
-    const p5 = combined.substring(20, 32);
-    
-    return `${p1}-${p2}-${p3}-${p4}-${p5}`;
-  }
-
-  // Ensures DM room exists in parent rooms table
-  async function ensureDMRoomExists(dmRoomId, partnerName) {
-    const { error } = await supabaseClient
-      .from('rooms')
-      .upsert([
-        { 
-          id: dmRoomId, 
-          name: `DM: ${partnerName}`,
-          is_direct: true 
-        }
-      ], { onConflict: 'id' });
-
-    if (error) console.warn('Note on DM room upsert:', error.message);
-  }
-
-  // Deterministic 36-char UUID v4 for department name
-  function getDeptRoomId(deptName) {
-    const cleanDept = (deptName || 'GENERAL').toUpperCase().trim();
-    let hash = 0;
-    for (let i = 0; i < cleanDept.length; i++) {
-      hash = (hash << 5) - hash + cleanDept.charCodeAt(i);
-      hash |= 0;
-    }
-    const hex = Math.abs(hash).toString(16).padStart(12, '0');
-    return `00000000-0000-4000-8000-${hex.substring(0, 12)}`;
-  }
-
-  // Ensures department room exists in parent rooms table
-  async function ensureDeptRoomExists(deptName) {
-    const deptRoomId = getDeptRoomId(deptName);
-    const { error } = await supabaseClient
-      .from('rooms')
-      .upsert([
-        {
-          id: deptRoomId,
-          name: `${deptName.toUpperCase()} Department Chat`,
-          is_direct: false
-        }
-      ], { onConflict: 'id' });
-
-    if (error) console.warn('Note on Dept room upsert:', error.message);
-    return deptRoomId;
-  }
-  
-  function toggleChat() {
-    const chatWin = document.getElementById('chat-window');
-    const badge = document.getElementById('chat-unread-badge');
-    isChatOpen = !isChatOpen;
-    
-    if (isChatOpen) {
-      chatWin.classList.remove('hidden');
-      chatWin.classList.add('flex');
-      unreadCount = 0;
-      badge.classList.add('hidden');
-      scrollToBottom();
-    } else {
-      chatWin.classList.add('hidden');
-      chatWin.classList.remove('flex');
-    }
-  }
-
-  function toggleDMMenu() {
-    const menu = document.getElementById('dm-selector-menu');
-    menu.classList.toggle('hidden');
-  }
-
-  function scrollToBottom() {
-    const container = document.getElementById('chat-messages');
-    if (container) container.scrollTop = container.scrollHeight;
-  }
-
-  function appendMessage({ sender, text, timestamp, isSelf = false }) {
-    const messagesContainer = document.getElementById('chat-messages');
-    if (!messagesContainer) return;
-    
-    const timeFormatted = new Date(timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const safeText = escapeHTML(text);
-    const safeSender = escapeHTML(sender || 'Staff');
-
-    let msgHTML = isSelf ? `
-      <div class="flex items-end justify-end space-x-2">
-        <div>
-          <div class="bg-phmc-emerald text-white p-3 rounded-2xl rounded-br-none shadow-sm mt-1 max-w-[230px] leading-relaxed break-words">
-            ${safeText}
-          </div>
-          <span class="text-[9px] text-slate-400 block text-right mt-1">${timeFormatted}</span>
-        </div>
-      </div>
-    ` : `
-      <div class="flex items-start space-x-2">
-        <div class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-700 flex-shrink-0 border border-slate-300">
-          ${safeSender.substring(0, 2).toUpperCase()}
-        </div>
-        <div>
-          <div class="flex items-baseline space-x-2">
-            <span class="font-bold text-slate-800 text-[11px]">${safeSender}</span>
-            <span class="text-[9px] text-slate-400">${timeFormatted}</span>
-          </div>
-          <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm mt-1 text-slate-700 max-w-[230px] leading-relaxed break-words">
-            ${safeText}
-          </div>
-        </div>
-      </div>
-    `;
-
-    messagesContainer.insertAdjacentHTML('beforeend', msgHTML);
-    if (isChatOpen) scrollToBottom();
-    else if (!isSelf) {
-      unreadCount++;
-      document.getElementById('chat-unread-badge').classList.remove('hidden');
-    }
-  }
-
-  async function syncChatProfile(user) {
-    const metadata = user.user_metadata || {};
-    const displayName = metadata.name || metadata.full_name || user.email.split('@')[0];
-    const department = metadata.department || 'Staff';
-
-    const { error } = await supabaseClient
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        name: displayName,
-        department: department,
-        updated_at: new Date()
-      });
-
-    if (error) console.error('Error syncing chat directory profile:', error.message);
-  }
-
-  async function loadStaffDirectory() {
-    const dmListContainer = document.getElementById('dm-users-list');
-    if (!dmListContainer) return;
-
-    let htmlContent = `
-      <div class="mb-2 pb-2 border-b border-slate-200">
-        <span class="block text-[10px] font-bold text-slate-400 uppercase px-2 mb-1">Department Group Chat</span>
-        <button 
-          type="button"
-          onclick="switchToDeptChat('${currentUserDept}')" 
-          class="w-full text-left px-2 py-1.5 rounded hover:bg-emerald-50 text-emerald-800 font-semibold flex items-center justify-between transition-colors"
-        >
-          <span class="truncate"><i class="fa-solid fa-users-gear mr-2 text-phmc-emerald"></i> ${escapeHTML(currentUserDept)} Dept</span>
-          <span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold ml-2">Team GC</span>
-        </button>
-      </div>
-      <span class="block text-[10px] font-bold text-slate-400 uppercase px-2 my-1">Staff Directory</span>
-    `;
-
-    const { data: staff, error } = await supabaseClient
-      .from('profiles')
-      .select('id, name, department')
-      .order('name', { ascending: true });
-
-    if (staff) {
-      // Cache profiles in map for real-time name lookups
-      staff.forEach(member => {
-        staffProfileMap[member.id] = member.name;
-      });
-    }
-
-    const otherStaff = staff ? staff.filter(m => m.id !== currentUserId) : [];
-
-    if (error || otherStaff.length === 0) {
-      htmlContent += `<span class="block px-2 py-1 text-[10px] text-slate-400 italic">No other staff available</span>`;
-    } else {
-      htmlContent += otherStaff.map(member => `
-        <button 
-          type="button"
-          onclick="switchToDM('${member.id}', '${escapeHTML(member.name)}')" 
-          class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-200/70 text-slate-700 flex items-center justify-between transition-colors"
-        >
-          <div class="flex items-center space-x-2 truncate">
-            <div class="w-5 h-5 rounded-full bg-phmc-emerald text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
-              ${escapeHTML(member.name).substring(0, 2).toUpperCase()}
-            </div>
-            <span class="font-medium truncate text-xs">${escapeHTML(member.name)}</span>
-          </div>
-          <span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">
-            ${escapeHTML(member.department)}
-          </span>
-        </button>
-      `).join('');
-    }
-
-    dmListContainer.innerHTML = htmlContent;
-  }
-
-  // Channel Switchers
-  async function switchToDeptChat(deptName) {
-    activeReceiverId = null;
-    isDeptChatMode = true;
-    activeReceiverName = '';
-    
-    document.getElementById('chat-title').innerText = `${deptName} Dept Chat`;
-    document.getElementById('chat-subtitle').innerText = 'Department Group Channel';
-    document.getElementById('chat-mode-badge').innerText = `${deptName} Team Channel`;
-    document.getElementById('chat-mode-icon').className = 'fa-solid fa-users text-white';
-    document.getElementById('dm-selector-menu').classList.add('hidden');
-
-    await ensureDeptRoomExists(deptName);
-    clearAndReloadMessages();
-  }
-
-  function switchToBroadcast() {
-    activeReceiverId = null;
-    isDeptChatMode = false;
-    activeReceiverName = '';
-    
-    document.getElementById('chat-title').innerText = 'General Broadcast';
-    document.getElementById('chat-subtitle').innerText = 'All-Staff Broadcast Channel';
-    document.getElementById('chat-mode-badge').innerText = 'Broadcast Channel';
-    document.getElementById('chat-mode-icon').className = 'fa-solid fa-hospital-user text-white';
-    document.getElementById('dm-selector-menu').classList.add('hidden');
-    
-    clearAndReloadMessages();
-  }
-
-  function switchToDM(userId, userName) {
-    activeReceiverId = userId;
-    isDeptChatMode = false;
-    activeReceiverName = userName;
-    
-    document.getElementById('chat-title').innerText = userName;
-    document.getElementById('chat-subtitle').innerText = '1-on-1 Direct Message';
-    document.getElementById('chat-mode-badge').innerText = `Private DM with ${userName}`;
-    document.getElementById('chat-mode-icon').className = 'fa-solid fa-lock text-white';
-    document.getElementById('dm-selector-menu').classList.add('hidden');
-    
-    clearAndReloadMessages();
-  }
-
-  function clearAndReloadMessages() {
-    const container = document.getElementById('chat-messages');
-    
-    let badgeLabel = 'Broadcast Channel';
-    if (isDeptChatMode) {
-      badgeLabel = `${currentUserDept} Team Channel`;
-    } else if (activeReceiverId) {
-      badgeLabel = `Private DM with ${activeReceiverName}`;
-    }
-
-    container.innerHTML = `
-      <div class="text-center my-2">
-        <span id="chat-mode-badge" class="text-[10px] font-medium bg-slate-200 text-slate-600 px-2.5 py-1 rounded-full">
-          ${badgeLabel}
-        </span>
-      </div>
-    `;
-    loadMessages();
-  }
-
-  document.addEventListener('DOMContentLoaded', async () => {
-    const { data: { session }, error } = await supabaseClient.auth.getSession();
-    if (!session || error) {
-      window.location.href = 'index.html';
-      return;
-    }
-
-    const user = session.user;
-    currentUserId = user.id;
-    const metadata = user.user_metadata || {};
-
-    currentUserName = metadata.name || metadata.full_name || user.email.split('@')[0];
-    currentUserDept = metadata.department || 'MAIN';
-    const displayDept = metadata.department ? `${metadata.department} (${metadata.team || 'General'})` : 'Internal Staff';
-
-    if (document.getElementById('user-display-name')) document.getElementById('user-display-name').innerText = currentUserName;
-    if (document.getElementById('user-display-dept')) document.getElementById('user-display-dept').innerText = displayDept;
-
-    await syncChatProfile(user);
-    await loadStaffDirectory();
-
-    subscribeToRealtime();
-    loadMessages();
-  });
-
-  function subscribeToRealtime() {
-    if (realtimeSubscription) supabaseClient.removeChannel(realtimeSubscription);
-
-    realtimeSubscription = supabaseClient
-      .channel('public:chat_messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
-        const newMsg = payload.new;
-        if (newMsg.sender_id === currentUserId) return;
-
-        if (isDeptChatMode) {
-          const deptRoomId = getDeptRoomId(currentUserDept);
-          if (newMsg.room_id === deptRoomId) {
-            const senderName = staffProfileMap[newMsg.sender_id] || 'Dept Member';
-            appendMessage({ sender: senderName, text: newMsg.content, timestamp: newMsg.created_at, isSelf: false });
+      function showSlide(index) {
+        slides.forEach((slide, i) => {
+          if (i === index) {
+            slide.classList.remove('opacity-0');
+            slide.classList.add('opacity-100');
+          } else {
+            slide.classList.remove('opacity-100');
+            slide.classList.add('opacity-0');
           }
-        } else if (activeReceiverId === null) {
-          if (!newMsg.receiver_id && newMsg.room_id === BROADCAST_ROOM_ID) {
-            const senderName = staffProfileMap[newMsg.sender_id] || 'Staff Member';
-            appendMessage({ sender: senderName, text: newMsg.content, timestamp: newMsg.created_at, isSelf: false });
-          }
-        } else {
-          if (newMsg.sender_id === activeReceiverId && newMsg.receiver_id === currentUserId) {
-            appendMessage({ sender: activeReceiverName, text: newMsg.content, timestamp: newMsg.created_at, isSelf: false });
-          }
-        }
-      })
-      .subscribe();
-  }
+        });
 
-  async function loadMessages() {
-    let query = supabaseClient
-      .from('chat_messages')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .limit(40);
+        indicators.forEach((indicator, i) => {
+          indicator.className = i === index ? 'w-8 h-2 rounded-full bg-white transition-all' : 'w-2 h-2 rounded-full bg-white/50 transition-all';
+        });
 
-    if (isDeptChatMode) {
-      const deptRoomId = getDeptRoomId(currentUserDept);
-      query = query.eq('room_id', deptRoomId);
-    } else if (activeReceiverId === null) {
-      query = query.is('receiver_id', null).eq('room_id', BROADCAST_ROOM_ID);
-    } else {
-      const dmRoomId = getDMRoomId(currentUserId, activeReceiverId);
-      query = query.eq('room_id', dmRoomId);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      console.error("Error loading chat history:", error.message);
-      return;
-    }
-
-    data.forEach(msg => {
-      let displayName = 'Staff Member';
-
-      if (msg.sender_id === currentUserId) {
-        displayName = 'You';
-      } else if (isDeptChatMode) {
-        displayName = staffProfileMap[msg.sender_id] || 'Dept Member';
-      } else {
-        displayName = activeReceiverName || staffProfileMap[msg.sender_id] || 'Staff Member';
+        currentIndex = index;
       }
 
-      appendMessage({
-        sender: displayName,
-        text: msg.content,
-        timestamp: msg.created_at,
-        isSelf: msg.sender_id === currentUserId
+      function nextSlide() { showSlide((currentIndex + 1) % slides.length); }
+      function prevSlide() { showSlide((currentIndex - 1 + slides.length) % slides.length); }
+      function startTimer() { slideInterval = setInterval(nextSlide, 4000); }
+      function resetTimer() { clearInterval(slideInterval); startTimer(); }
+
+      if (nextBtn && prevBtn) {
+        nextBtn.addEventListener('click', () => { nextSlide(); resetTimer(); });
+        prevBtn.addEventListener('click', () => { prevSlide(); resetTimer(); });
+      }
+
+      indicators.forEach((btn, idx) => {
+        btn.addEventListener('click', () => { showSlide(idx); resetTimer(); });
       });
+
+      startTimer();
     });
-  }
+  </script>
 
-  async function handleSendMessage(e) {
-    e.preventDefault();
-    const input = document.getElementById('chat-input');
-    const messageText = input.value.trim();
-    if (!messageText) return;
+  <!-- Supabase Auth, Public Profiles Sync & Multi-Mode Chat -->
+  <script>
+    const supabaseClient = supabase.createClient(
+      'https://kiknpyyxrslvjhdskshx.supabase.co',
+      'sb_publishable_NrjGthTKEZZJZaQboWxf5A_Ob6bTY8f'
+    );
 
-    input.value = '';
-    appendMessage({ sender: 'You', text: messageText, timestamp: new Date(), isSelf: true });
+    const BROADCAST_ROOM_ID = '00000000-0000-0000-0000-000000000001';
+    let currentUserId = null;
+    let currentUserDept = 'MAIN';
+    let currentUserName = 'Staff';
+    let activeReceiverId = null; // null = General Broadcast or Dept Mode
+    let activeReceiverName = '';
+    let isDeptChatMode = false;  // Active state for Department GC
+    let isChatOpen = false;
+    let unreadCount = 0;
+    let realtimeSubscription = null;
+    
+    // Cache map: user_id -> Name
+    let staffProfileMap = {};
 
-    let targetRoomId;
-    if (isDeptChatMode) {
-      targetRoomId = await ensureDeptRoomExists(currentUserDept);
-    } else if (activeReceiverId === null) {
-      targetRoomId = BROADCAST_ROOM_ID;
-    } else {
-      targetRoomId = getDMRoomId(currentUserId, activeReceiverId);
-      await ensureDMRoomExists(targetRoomId, activeReceiverName);
+    function escapeHTML(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
-    const payload = {
-      room_id: targetRoomId,
-      sender_id: currentUserId,
-      receiver_id: isDeptChatMode ? null : activeReceiverId,
-      content: messageText
-    };
-
-    const { error } = await supabaseClient.from('chat_messages').insert([payload]);
-
-    if (error) {
-      console.error('Supabase Insert Error:', error.message);
-      alert('Failed to send message: ' + error.message);
+    // Deterministic 36-character UUID v4 for 1-on-1 private DMs
+    function getDMRoomId(userIdA, userIdB) {
+      const sorted = [userIdA, userIdB].sort();
+      const rawA = sorted[0].replace(/-/g, '');
+      const rawB = sorted[1].replace(/-/g, '');
+      
+      const combined = (rawA + rawB).slice(0, 32).padEnd(32, '0');
+      
+      const p1 = combined.substring(0, 8);
+      const p2 = combined.substring(8, 12);
+      const p3 = '4' + combined.substring(13, 16);
+      const p4 = '8' + combined.substring(17, 20);
+      const p5 = combined.substring(20, 32);
+      
+      return `${p1}-${p2}-${p3}-${p4}-${p5}`;
     }
-  }
 
-  async function handleLogout() {
-    await supabaseClient.auth.signOut();
-    window.location.href = 'index.html';
-  }
-</script>
+    // Ensures DM room exists in parent rooms table
+    async function ensureDMRoomExists(dmRoomId, partnerName) {
+      const { error } = await supabaseClient
+        .from('rooms')
+        .upsert([
+          { 
+            id: dmRoomId, 
+            name: `DM: ${partnerName}`,
+            is_direct: true 
+          }
+        ], { onConflict: 'id' });
+
+      if (error) console.warn('Note on DM room upsert:', error.message);
+    }
+
+    // Deterministic 36-char UUID v4 for department name
+    function getDeptRoomId(deptName) {
+      const cleanDept = (deptName || 'GENERAL').toUpperCase().trim();
+      let hash = 0;
+      for (let i = 0; i < cleanDept.length; i++) {
+        hash = (hash << 5) - hash + cleanDept.charCodeAt(i);
+        hash |= 0;
+      }
+      const hex = Math.abs(hash).toString(16).padStart(12, '0');
+      return `00000000-0000-4000-8000-${hex.substring(0, 12)}`;
+    }
+
+    // Ensures department room exists in parent rooms table
+    async function ensureDeptRoomExists(deptName) {
+      const deptRoomId = getDeptRoomId(deptName);
+      const { error } = await supabaseClient
+        .from('rooms')
+        .upsert([
+          {
+            id: deptRoomId,
+            name: `${deptName.toUpperCase()} Department Chat`,
+            is_direct: false
+          }
+        ], { onConflict: 'id' });
+
+      if (error) console.warn('Note on Dept room upsert:', error.message);
+      return deptRoomId;
+    }
+    
+    function toggleChat() {
+      const chatWin = document.getElementById('chat-window');
+      const badge = document.getElementById('chat-unread-badge');
+      isChatOpen = !isChatOpen;
+      
+      if (isChatOpen) {
+        chatWin.classList.remove('hidden');
+        chatWin.classList.add('flex');
+        unreadCount = 0;
+        badge.classList.add('hidden');
+        scrollToBottom();
+      } else {
+        chatWin.classList.add('hidden');
+        chatWin.classList.remove('flex');
+      }
+    }
+
+    function toggleDMMenu() {
+      const menu = document.getElementById('dm-selector-menu');
+      menu.classList.toggle('hidden');
+    }
+
+    function scrollToBottom() {
+      const container = document.getElementById('chat-messages');
+      if (container) container.scrollTop = container.scrollHeight;
+    }
+
+    function appendMessage({ sender, text, timestamp, isSelf = false }) {
+      const messagesContainer = document.getElementById('chat-messages');
+      if (!messagesContainer) return;
+      
+      const timeFormatted = new Date(timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const safeText = escapeHTML(text);
+      const safeSender = escapeHTML(sender || 'Staff');
+
+      let msgHTML = isSelf ? `
+        <div class="flex items-end justify-end space-x-2">
+          <div>
+            <div class="bg-phmc-emerald text-white p-3 rounded-2xl rounded-br-none shadow-sm mt-1 max-w-[230px] leading-relaxed break-words">
+              ${safeText}
+            </div>
+            <span class="text-[9px] text-slate-400 block text-right mt-1">${timeFormatted}</span>
+          </div>
+        </div>
+      ` : `
+        <div class="flex items-start space-x-2">
+          <div class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-700 flex-shrink-0 border border-slate-300">
+            ${safeSender.substring(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <div class="flex items-baseline space-x-2">
+              <span class="font-bold text-slate-800 text-[11px]">${safeSender}</span>
+              <span class="text-[9px] text-slate-400">${timeFormatted}</span>
+            </div>
+            <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm mt-1 text-slate-700 max-w-[230px] leading-relaxed break-words">
+              ${safeText}
+            </div>
+          </div>
+        </div>
+      `;
+
+      messagesContainer.insertAdjacentHTML('beforeend', msgHTML);
+      if (isChatOpen) scrollToBottom();
+      else if (!isSelf) {
+        unreadCount++;
+        document.getElementById('chat-unread-badge').classList.remove('hidden');
+      }
+    }
+
+    async function syncChatProfile(user) {
+      const metadata = user.user_metadata || {};
+      const displayName = metadata.name || metadata.full_name || user.email.split('@')[0];
+      const department = metadata.department || 'Staff';
+
+      const { error } = await supabaseClient
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name: displayName,
+          department: department,
+          updated_at: new Date()
+        });
+
+      if (error) console.error('Error syncing chat directory profile:', error.message);
+    }
+
+    async function loadStaffDirectory() {
+      const dmListContainer = document.getElementById('dm-users-list');
+      if (!dmListContainer) return;
+
+      let htmlContent = `
+        <div class="mb-2 pb-2 border-b border-slate-200">
+          <span class="block text-[10px] font-bold text-slate-400 uppercase px-2 mb-1">Department Group Chat</span>
+          <button 
+            type="button"
+            onclick="switchToDeptChat('${currentUserDept}')" 
+            class="w-full text-left px-2 py-1.5 rounded hover:bg-emerald-50 text-emerald-800 font-semibold flex items-center justify-between transition-colors"
+          >
+            <span class="truncate"><i class="fa-solid fa-users-gear mr-2 text-phmc-emerald"></i> ${escapeHTML(currentUserDept)} Dept</span>
+            <span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold ml-2">Team GC</span>
+          </button>
+        </div>
+        <span class="block text-[10px] font-bold text-slate-400 uppercase px-2 my-1">Staff Directory</span>
+      `;
+
+      const { data: staff, error } = await supabaseClient
+        .from('profiles')
+        .select('id, name, department')
+        .order('name', { ascending: true });
+
+      if (staff) {
+        // Cache profiles in map for real-time name lookups
+        staff.forEach(member => {
+          staffProfileMap[member.id] = member.name;
+        });
+      }
+
+      const otherStaff = staff ? staff.filter(m => m.id !== currentUserId) : [];
+
+      if (error || otherStaff.length === 0) {
+        htmlContent += `<span class="block px-2 py-1 text-[10px] text-slate-400 italic">No other staff available</span>`;
+      } else {
+        htmlContent += otherStaff.map(member => `
+          <button 
+            type="button"
+            onclick="switchToDM('${member.id}', '${escapeHTML(member.name)}')" 
+            class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-200/70 text-slate-700 flex items-center justify-between transition-colors"
+          >
+            <div class="flex items-center space-x-2 truncate">
+              <div class="w-5 h-5 rounded-full bg-phmc-emerald text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                ${escapeHTML(member.name).substring(0, 2).toUpperCase()}
+              </div>
+              <span class="font-medium truncate text-xs">${escapeHTML(member.name)}</span>
+            </div>
+            <span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">
+              ${escapeHTML(member.department)}
+            </span>
+          </button>
+        `).join('');
+      }
+
+      dmListContainer.innerHTML = htmlContent;
+    }
+
+    // Channel Switchers
+    async function switchToDeptChat(deptName) {
+      activeReceiverId = null;
+      isDeptChatMode = true;
+      activeReceiverName = '';
+      
+      document.getElementById('chat-title').innerText = `${deptName} Dept Chat`;
+      document.getElementById('chat-subtitle').innerText = 'Department Group Channel';
+      document.getElementById('chat-mode-badge').innerText = `${deptName} Team Channel`;
+      document.getElementById('chat-mode-icon').className = 'fa-solid fa-users text-white';
+      document.getElementById('dm-selector-menu').classList.add('hidden');
+
+      await ensureDeptRoomExists(deptName);
+      clearAndReloadMessages();
+    }
+
+    function switchToBroadcast() {
+      activeReceiverId = null;
+      isDeptChatMode = false;
+      activeReceiverName = '';
+      
+      document.getElementById('chat-title').innerText = 'General Broadcast';
+      document.getElementById('chat-subtitle').innerText = 'All-Staff Broadcast Channel';
+      document.getElementById('chat-mode-badge').innerText = 'Broadcast Channel';
+      document.getElementById('chat-mode-icon').className = 'fa-solid fa-hospital-user text-white';
+      document.getElementById('dm-selector-menu').classList.add('hidden');
+      
+      clearAndReloadMessages();
+    }
+
+    function switchToDM(userId, userName) {
+      activeReceiverId = userId;
+      isDeptChatMode = false;
+      activeReceiverName = userName;
+      
+      document.getElementById('chat-title').innerText = userName;
+      document.getElementById('chat-subtitle').innerText = '1-on-1 Direct Message';
+      document.getElementById('chat-mode-badge').innerText = `Private DM with ${userName}`;
+      document.getElementById('chat-mode-icon').className = 'fa-solid fa-lock text-white';
+      document.getElementById('dm-selector-menu').classList.add('hidden');
+      
+      clearAndReloadMessages();
+    }
+
+    function clearAndReloadMessages() {
+      const container = document.getElementById('chat-messages');
+      
+      let badgeLabel = 'Broadcast Channel';
+      if (isDeptChatMode) {
+        badgeLabel = `${currentUserDept} Team Channel`;
+      } else if (activeReceiverId) {
+        badgeLabel = `Private DM with ${activeReceiverName}`;
+      }
+
+      container.innerHTML = `
+        <div class="text-center my-2">
+          <span id="chat-mode-badge" class="text-[10px] font-medium bg-slate-200 text-slate-600 px-2.5 py-1 rounded-full">
+            ${badgeLabel}
+          </span>
+        </div>
+      `;
+      loadMessages();
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      if (!session || error) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const user = session.user;
+      currentUserId = user.id;
+      const metadata = user.user_metadata || {};
+
+      currentUserName = metadata.name || metadata.full_name || user.email.split('@')[0];
+      currentUserDept = metadata.department || 'MAIN';
+      const displayDept = metadata.department ? `${metadata.department} (${metadata.team || 'General'})` : 'Internal Staff';
+
+      if (document.getElementById('user-display-name')) document.getElementById('user-display-name').innerText = currentUserName;
+      if (document.getElementById('user-display-dept')) document.getElementById('user-display-dept').innerText = displayDept;
+
+      await syncChatProfile(user);
+      await loadStaffDirectory();
+
+      subscribeToRealtime();
+      loadMessages();
+    });
+
+    function subscribeToRealtime() {
+      if (realtimeSubscription) supabaseClient.removeChannel(realtimeSubscription);
+
+      realtimeSubscription = supabaseClient
+        .channel('public:chat_messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
+          const newMsg = payload.new;
+          if (newMsg.sender_id === currentUserId) return;
+
+          if (isDeptChatMode) {
+            const deptRoomId = getDeptRoomId(currentUserDept);
+            if (newMsg.room_id === deptRoomId) {
+              const senderName = staffProfileMap[newMsg.sender_id] || 'Dept Member';
+              appendMessage({ sender: senderName, text: newMsg.content, timestamp: newMsg.created_at, isSelf: false });
+            }
+          } else if (activeReceiverId === null) {
+            if (!newMsg.receiver_id && newMsg.room_id === BROADCAST_ROOM_ID) {
+              const senderName = staffProfileMap[newMsg.sender_id] || 'Staff Member';
+              appendMessage({ sender: senderName, text: newMsg.content, timestamp: newMsg.created_at, isSelf: false });
+            }
+          } else {
+            if (newMsg.sender_id === activeReceiverId && newMsg.receiver_id === currentUserId) {
+              appendMessage({ sender: activeReceiverName, text: newMsg.content, timestamp: newMsg.created_at, isSelf: false });
+            }
+          }
+        })
+        .subscribe();
+    }
+
+    async function loadMessages() {
+      let query = supabaseClient
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(40);
+
+      if (isDeptChatMode) {
+        const deptRoomId = getDeptRoomId(currentUserDept);
+        query = query.eq('room_id', deptRoomId);
+      } else if (activeReceiverId === null) {
+        query = query.is('receiver_id', null).eq('room_id', BROADCAST_ROOM_ID);
+      } else {
+        const dmRoomId = getDMRoomId(currentUserId, activeReceiverId);
+        query = query.eq('room_id', dmRoomId);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error("Error loading chat history:", error.message);
+        return;
+      }
+
+      data.forEach(msg => {
+        let displayName = 'Staff Member';
+
+        if (msg.sender_id === currentUserId) {
+          displayName = 'You';
+        } else if (isDeptChatMode) {
+          displayName = staffProfileMap[msg.sender_id] || 'Dept Member';
+        } else {
+          displayName = activeReceiverName || staffProfileMap[msg.sender_id] || 'Staff Member';
+        }
+
+        appendMessage({
+          sender: displayName,
+          text: msg.content,
+          timestamp: msg.created_at,
+          isSelf: msg.sender_id === currentUserId
+        });
+      });
+    }
+
+    async function handleSendMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const messageText = input.value.trim();
+      if (!messageText) return;
+
+      input.value = '';
+      appendMessage({ sender: 'You', text: messageText, timestamp: new Date(), isSelf: true });
+
+      let targetRoomId;
+      if (isDeptChatMode) {
+        targetRoomId = await ensureDeptRoomExists(currentUserDept);
+      } else if (activeReceiverId === null) {
+        targetRoomId = BROADCAST_ROOM_ID;
+      } else {
+        targetRoomId = getDMRoomId(currentUserId, activeReceiverId);
+        await ensureDMRoomExists(targetRoomId, activeReceiverName);
+      }
+
+      const payload = {
+        room_id: targetRoomId,
+        sender_id: currentUserId,
+        receiver_id: isDeptChatMode ? null : activeReceiverId,
+        content: messageText
+      };
+
+      const { error } = await supabaseClient.from('chat_messages').insert([payload]);
+
+      if (error) {
+        console.error('Supabase Insert Error:', error.message);
+        alert('Failed to send message: ' + error.message);
+      }
+    }
+
+    async function handleLogout() {
+      await supabaseClient.auth.signOut();
+      window.location.href = 'index.html';
+    }
+  </script>
 </body>
 </html>

@@ -1176,45 +1176,45 @@
       if (sendBtn) {
         sendBtn.disabled = true;
         sendBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin text-xs"></i>`;
-      }
-
-      try {
-        if (selectedFile) {
-          fileMeta = await uploadFileToStorage(selectedFile);
-        }
-
-        const payload = {
-          room_id: activeRoomId,
-          sender_id: currentUserId,
-          receiver_id: chatMode === 'DM' ? activeReceiverId : null,
-          content: messageText,
-          file_meta: fileMeta
-        };
-
-        appendMessage({ 
-          sender: 'You', 
-          text: messageText, 
-          fileMeta: fileMeta, 
-          timestamp: new Date(), 
-          isSelf: true 
-        });
-
-        input.value = '';
-        clearSelectedFile();
-
-        const { error } = await supabaseClient.from('chat_messages').insert([payload]);
-        if (error) throw error;
-
-      } catch (err) {
-        console.error('Error sending message:', err);
-        alert('Failed to send attachment: ' + err.message);
-      } font-medium {
-        if (sendBtn) {
-          sendBtn.disabled = false;
-          sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i>`;
-        }
-      }
     }
+
+    try {
+      if (selectedFile) {
+        fileMeta = await uploadFileToStorage(selectedFile);
+    }
+
+    const payload = {
+      room_id: activeRoomId,
+      sender_id: currentUserId,
+      receiver_id: chatMode === 'DM' ? activeReceiverId : null,
+      content: messageText,
+      file_meta: fileMeta
+    };
+
+    appendMessage({ 
+      sender: 'You', 
+      text: messageText, 
+      fileMeta: fileMeta, 
+      timestamp: new Date(), 
+      isSelf: true 
+    });
+
+    input.value = '';
+    clearSelectedFile();
+
+    const { error } = await supabaseClient.from('chat_messages').insert([payload]);
+    if (error) throw error;
+
+  } catch (err) {
+    console.error('Error sending message:', err);
+    alert('Failed to send attachment: ' + err.message);
+  } finally { // Fixed: changed 'font-medium {' to 'finally {'
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i>`;
+    }
+  }
+}
 
     async function handleLogout() {
       await supabaseClient.auth.signOut();

@@ -223,8 +223,7 @@
   <div id="phmc-chat-container" class="fixed bottom-6 right-6 z-[60] flex flex-col items-end">
     
     <!-- Chat Drawer Window -->
-    <!-- AFTER (Responsive max-height) -->
-    <div id="chat-window" class="hidden w-80 sm:w-96 h-[80vh] max-h-[540px] max-h-[calc(100vh-120px)] bg-white rounded-2xl shadow-2xl border border-slate-200 flex-col overflow-hidden mb-3 transition-all">
+    <div id="chat-window" class="hidden w-80 sm:w-96 h-[80vh] max-h-[calc(100vh-120px)] bg-white rounded-2xl shadow-2xl border border-slate-200 flex-col overflow-hidden mb-3 transition-all">
       
       <!-- Chat Header -->
       <div class="bg-phmc-emerald text-white px-4 py-3 flex items-center justify-between shadow-sm">
@@ -286,26 +285,54 @@
         </div>
       </div>
 
+      <!-- File Attachment Preview Area -->
+      <div id="file-preview-container" class="hidden px-3 pt-2 flex items-center justify-between text-xs bg-slate-50 border-t border-slate-200">
+        <div class="flex items-center space-x-2 truncate">
+          <i id="file-preview-icon" class="fa-solid fa-file text-phmc-emerald"></i>
+          <span id="file-preview-name" class="truncate text-slate-700 font-medium text-[11px]"></span>
+        </div>
+        <button type="button" onclick="clearSelectedFile()" class="text-slate-400 hover:text-rose-500 ml-2">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
       <!-- Input Bar -->
       <div class="p-3 bg-white border-t border-slate-200">
         <form id="chat-form" onsubmit="handleSendMessage(event)" class="flex items-center space-x-2">
+          <input 
+            type="file" 
+            id="chat-file-input" 
+            class="hidden" 
+            accept="image/*,.pdf,.doc,.docx"
+            onchange="handleFileSelect(event)"
+          />
+
+          <!-- Paperclip / Attachment Trigger Button -->
+          <button 
+            type="button" 
+            onclick="document.getElementById('chat-file-input').click()" 
+            class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all flex-shrink-0"
+            title="Attach File"
+          >
+            <i class="fa-solid fa-paperclip text-xs"></i>
+          </button>
+          
           <input 
             type="text" 
             id="chat-input" 
             placeholder="Type message..." 
             class="flex-1 px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-phmc-emerald/50 focus:bg-white transition-all"
             autocomplete="off"
-            required
           />
           <button 
             type="submit" 
+            id="send-btn"
             class="w-9 h-9 rounded-xl bg-phmc-emerald hover:bg-emerald-600 text-white flex items-center justify-center transition-all shadow-sm flex-shrink-0"
           >
             <i class="fa-solid fa-paper-plane text-xs"></i>
           </button>
         </form>
       </div>
-
     </div>
 
     <!-- Toggle Trigger Button -->
@@ -322,54 +349,34 @@
     </button>
   </div>
 
-  <!-- Carousel Script -->
+  <!-- Application Logic Scripts -->
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const slides = document.querySelectorAll('#carousel-slides .carousel-item');
-      const indicators = document.querySelectorAll('#carousel-indicators button');
-      const prevBtn = document.getElementById('prevBtn');
-      const nextBtn = document.getElementById('nextBtn');
-      let currentIndex = 0;
-      let slideInterval;
+    // --- Image Carousel Logic ---
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.carousel-item');
+    const indicators = document.querySelectorAll('#carousel-indicators button');
 
-      function showSlide(index) {
-        slides.forEach((slide, i) => {
-          if (i === index) {
-            slide.classList.remove('opacity-0');
-            slide.classList.add('opacity-100');
-          } else {
-            slide.classList.remove('opacity-100');
-            slide.classList.add('opacity-0');
-          }
-        });
-
-        indicators.forEach((indicator, i) => {
-          indicator.className = i === index ? 'w-8 h-2 rounded-full bg-white transition-all' : 'w-2 h-2 rounded-full bg-white/50 transition-all';
-        });
-
-        currentIndex = index;
-      }
-
-      function nextSlide() { showSlide((currentIndex + 1) % slides.length); }
-      function prevSlide() { showSlide((currentIndex - 1 + slides.length) % slides.length); }
-      function startTimer() { slideInterval = setInterval(nextSlide, 4000); }
-      function resetTimer() { clearInterval(slideInterval); startTimer(); }
-
-      if (nextBtn && prevBtn) {
-        nextBtn.addEventListener('click', () => { nextSlide(); resetTimer(); });
-        prevBtn.addEventListener('click', () => { prevSlide(); resetTimer(); });
-      }
-
-      indicators.forEach((btn, idx) => {
-        btn.addEventListener('click', () => { showSlide(idx); resetTimer(); });
+    function showSlide(index) {
+      if (!slides.length) return;
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('opacity-100', i === index);
+        slide.classList.toggle('opacity-0', i !== index);
       });
+      indicators.forEach((ind, i) => {
+        ind.className = i === index ? 'w-8 h-2 rounded-full bg-white transition-all' : 'w-2 h-2 rounded-full bg-white/50 transition-all';
+      });
+      currentSlide = index;
+    }
 
-      startTimer();
-    });
-  </script>
+    document.getElementById('nextBtn')?.addEventListener('click', () => showSlide((currentSlide + 1) % slides.length));
+    document.getElementById('prevBtn')?.addEventListener('click', () => showSlide((currentSlide - 1 + slides.length) % slides.length));
+    indicators.forEach((btn, i) => btn.addEventListener('click', () => showSlide(i)));
 
-  <!-- Supabase Chat Logic with Custom GC Creation -->
-  <script>
+    // Auto-advance hero carousel every 5 seconds
+    setInterval(() => showSlide((currentSlide + 1) % slides.length), 5000);
+
+
+    // --- Supabase Chat & Attachment Logic ---
     const supabaseClient = supabase.createClient(
       'https://kiknpyyxrslvjhdskshx.supabase.co',
       'sb_publishable_NrjGthTKEZZJZaQboWxf5A_Ob6bTY8f'
@@ -391,7 +398,9 @@
     let realtimeSubscription = null;
     let staffDirectory = [];
     let staffProfileMap = {};
+    let selectedFile = null;
 
+    // Helper Utility Functions
     function escapeHTML(str) {
       return String(str || '')
         .replace(/&/g, '&amp;')
@@ -449,19 +458,100 @@
       if (container) container.scrollTop = container.scrollHeight;
     }
 
-    function appendMessage({ sender, text, timestamp, isSelf = false }) {
+    // Attachment Helpers
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      selectedFile = file;
+      const container = document.getElementById('file-preview-container');
+      const nameSpan = document.getElementById('file-preview-name');
+      const icon = document.getElementById('file-preview-icon');
+
+      nameSpan.innerText = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+
+      if (file.type.startsWith('image/')) {
+        icon.className = 'fa-solid fa-image text-emerald-600';
+      } else if (file.type === 'application/pdf') {
+        icon.className = 'fa-solid fa-file-pdf text-rose-500';
+      } else {
+        icon.className = 'fa-solid fa-file-word text-blue-600';
+      }
+
+      container.classList.remove('hidden');
+    }
+
+    function clearSelectedFile() {
+      selectedFile = null;
+      document.getElementById('chat-file-input').value = '';
+      document.getElementById('file-preview-container').classList.add('hidden');
+    }
+
+    async function uploadFileToStorage(file) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `uploads/${fileName}`;
+
+      const { data, error } = await supabaseClient.storage
+        .from('chat-attachments')
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabaseClient.storage
+        .from('chat-attachments')
+        .getPublicUrl(filePath);
+
+      return {
+        url: publicUrlData.publicUrl,
+        name: file.name,
+        type: file.type
+      };
+    }
+
+    function renderAttachmentHTML(fileMeta) {
+      if (!fileMeta || !fileMeta.url) return '';
+
+      const { url, name, type } = fileMeta;
+      const isImage = type && type.startsWith('image/');
+      const isPdf = type === 'application/pdf';
+
+      if (isImage) {
+        return `
+          <div class="mt-2 rounded-lg overflow-hidden border border-slate-200 shadow-sm max-w-[200px]">
+            <a href="${url}" target="_blank" rel="noopener noreferrer">
+              <img src="${url}" alt="${escapeHTML(name)}" class="w-full h-auto max-h-48 object-cover hover:opacity-90 transition-opacity" />
+            </a>
+          </div>
+        `;
+      }
+
+      const iconClass = isPdf ? 'fa-file-pdf text-rose-500' : 'fa-file-word text-blue-500';
+
+      return `
+        <a href="${url}" target="_blank" rel="noopener noreferrer" class="mt-2 flex items-center space-x-2 p-2 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-200 transition-colors text-slate-800 text-[11px] font-medium block">
+          <i class="fa-solid ${iconClass} text-lg"></i>
+          <span class="truncate flex-1">${escapeHTML(name || 'Attached File')}</span>
+          <i class="fa-solid fa-download text-slate-400 text-xs"></i>
+        </a>
+      `;
+    }
+
+    function appendMessage({ sender, text, fileMeta = null, timestamp, isSelf = false }) {
       const messagesContainer = document.getElementById('chat-messages');
       if (!messagesContainer) return;
       
       const timeFormatted = new Date(timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const safeText = escapeHTML(text);
       const safeSender = escapeHTML(sender || 'Staff');
+      const attachmentMarkup = renderAttachmentHTML(fileMeta);
 
       let msgHTML = isSelf ? `
         <div class="flex items-end justify-end space-x-2">
           <div>
             <div class="bg-phmc-emerald text-white p-3 rounded-2xl rounded-br-none shadow-sm mt-1 max-w-[230px] leading-relaxed break-words">
-              ${safeText}
+              ${safeText ? `<div>${safeText}</div>` : ''}
+              ${attachmentMarkup}
             </div>
             <span class="text-[9px] text-slate-400 block text-right mt-1">${timeFormatted}</span>
           </div>
@@ -477,7 +567,8 @@
               <span class="text-[9px] text-slate-400">${timeFormatted}</span>
             </div>
             <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm mt-1 text-slate-700 max-w-[230px] leading-relaxed break-words">
-              ${safeText}
+              ${safeText ? `<div>${safeText}</div>` : ''}
+              ${attachmentMarkup}
             </div>
           </div>
         </div>
@@ -525,7 +616,6 @@
 
       if (!gcName) return;
 
-      // Create new Room in database
       const newRoomId = crypto.randomUUID();
       const { error: roomErr } = await supabaseClient
         .from('rooms')
@@ -536,7 +626,6 @@
         return;
       }
 
-      // Add members including current user
       const allMembers = [...memberIds, currentUserId].map(uid => ({
         room_id: newRoomId,
         user_id: uid
@@ -549,7 +638,7 @@
       switchToCustomGC(newRoomId, gcName);
     }
 
-    // Navigation Switchers
+    // Channel Switchers
     function switchToBroadcast() {
       chatMode = 'BROADCAST';
       activeRoomId = BROADCAST_ROOM_ID;
@@ -621,12 +710,10 @@
     }
 
     async function loadStaffDirectoryAndCustomGCs() {
-      // 1. Fetch Staff Profiles
       const { data: staff } = await supabaseClient.from('profiles').select('id, name, department').order('name');
       staffDirectory = staff || [];
       staffDirectory.forEach(s => staffProfileMap[s.id] = s.name);
 
-      // 2. Fetch Custom GCs user belongs to
       const { data: userGCMemberships } = await supabaseClient
         .from('room_members')
         .select('room_id, rooms(id, name)')
@@ -648,7 +735,6 @@
         customGCsContainer.innerHTML = '';
       }
 
-      // 3. Render Staff Directory DMs & Dept Button
       const dmListContainer = document.getElementById('dm-users-list');
       let htmlContent = `
         <div class="mb-2 pb-2 border-b border-slate-200">
@@ -726,7 +812,13 @@
 
           if (newMsg.room_id === activeRoomId) {
             const senderName = staffProfileMap[newMsg.sender_id] || 'Staff Member';
-            appendMessage({ sender: senderName, text: newMsg.content, timestamp: newMsg.created_at, isSelf: false });
+            appendMessage({ 
+              sender: senderName, 
+              text: newMsg.content, 
+              fileMeta: newMsg.file_meta, 
+              timestamp: newMsg.created_at, 
+              isSelf: false 
+            });
           }
         })
         .subscribe();
@@ -752,6 +844,7 @@
         appendMessage({
           sender: displayName,
           text: msg.content,
+          fileMeta: msg.file_meta,
           timestamp: msg.created_at,
           isSelf: isSelf
         });
@@ -761,23 +854,53 @@
     async function handleSendMessage(e) {
       e.preventDefault();
       const input = document.getElementById('chat-input');
+      const sendBtn = document.getElementById('send-btn');
       const messageText = input.value.trim();
-      if (!messageText) return;
 
-      input.value = '';
-      appendMessage({ sender: 'You', text: messageText, timestamp: new Date(), isSelf: true });
+      if (!messageText && !selectedFile) return;
 
-      const payload = {
-        room_id: activeRoomId,
-        sender_id: currentUserId,
-        receiver_id: chatMode === 'DM' ? activeReceiverId : null,
-        content: messageText
-      };
+      let fileMeta = null;
 
-      const { error } = await supabaseClient.from('chat_messages').insert([payload]);
-      if (error) {
-        console.error('Supabase Insert Error:', error.message);
-        alert('Failed to send message: ' + error.message);
+      if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin text-xs"></i>`;
+      }
+
+      try {
+        if (selectedFile) {
+          fileMeta = await uploadFileToStorage(selectedFile);
+        }
+
+        const payload = {
+          room_id: activeRoomId,
+          sender_id: currentUserId,
+          receiver_id: chatMode === 'DM' ? activeReceiverId : null,
+          content: messageText,
+          file_meta: fileMeta
+        };
+
+        appendMessage({ 
+          sender: 'You', 
+          text: messageText, 
+          fileMeta: fileMeta, 
+          timestamp: new Date(), 
+          isSelf: true 
+        });
+
+        input.value = '';
+        clearSelectedFile();
+
+        const { error } = await supabaseClient.from('chat_messages').insert([payload]);
+        if (error) throw error;
+
+      } catch (err) {
+        console.error('Error sending message:', err);
+        alert('Failed to send attachment: ' + err.message);
+      } finally {
+        if (sendBtn) {
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i>`;
+        }
       }
     }
 

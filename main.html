@@ -251,6 +251,49 @@
     </div>
   </div>
 
+  <!-- News Detail Viewer Modal -->
+  <div id="view-news-modal" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8 max-h-[90vh] flex flex-col">
+      
+      <!-- Modal Header -->
+      <div class="bg-slate-900 text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center space-x-2">
+          <span id="view-news-category" class="text-[10px] font-bold uppercase tracking-wider bg-phmc-emerald px-2.5 py-0.5 rounded-full text-white">Category</span>
+        </div>
+        <button onclick="closeViewNewsModal()" class="text-slate-400 hover:text-white transition-colors">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Scrollable Body -->
+      <div class="p-6 overflow-y-auto space-y-4">
+        <h2 id="view-news-title" class="text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight"></h2>
+        
+        <div class="flex items-center space-x-4 text-xs text-slate-500 pb-2 border-b border-slate-100">
+          <span><i class="fa-regular fa-calendar mr-1"></i><span id="view-news-date"></span></span>
+          <span>•</span>
+          <span><i class="fa-regular fa-user mr-1"></i><span id="view-news-author"></span></span>
+        </div>
+
+        <div id="view-news-image-container" class="rounded-xl overflow-hidden bg-slate-100 max-h-96 w-full flex items-center justify-center">
+          <img id="view-news-image" src="" alt="News Image" class="w-full h-auto max-h-96 object-contain" />
+        </div>
+
+        <div class="pt-2">
+          <p id="view-news-summary" class="text-slate-700 text-sm leading-relaxed whitespace-pre-line"></p>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="bg-slate-50 px-5 py-3 border-t border-slate-200 flex justify-end flex-shrink-0">
+        <button onclick="closeViewNewsModal()" class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded-xl transition-colors">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Create GC Modal -->
   <div id="create-gc-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
@@ -324,7 +367,6 @@
         </div>
         
         <div class="flex items-center space-x-2">
-          <!-- Switcher Dropdown Button -->
           <button onclick="toggleDMMenu()" title="Select Channel or User" class="text-emerald-100 hover:text-white p-1 rounded-lg transition-colors">
             <i class="fa-solid fa-layer-group text-sm"></i>
           </button>
@@ -334,7 +376,7 @@
         </div>
       </div>
 
-      <!-- Recipient / Channel Selector Dropdown Menu -->
+      <!-- DM Menu -->
       <div id="dm-selector-menu" class="hidden bg-slate-100 p-2 border-b border-slate-200 text-xs max-h-80 overflow-y-auto">
         <div class="flex items-center justify-between px-2 mb-1">
           <span class="block text-[10px] font-bold text-slate-500 uppercase">Channels</span>
@@ -348,15 +390,11 @@
           <span class="text-[9px] bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded">Public</span>
         </button>
 
-        <div id="custom-gcs-container" class="space-y-1 mb-1">
-          <!-- Dynamic Custom GCs list -->
-        </div>
+        <div id="custom-gcs-container" class="space-y-1 mb-1"></div>
         
         <div class="my-1 border-t border-slate-200"></div>
 
-        <div id="dm-users-list" class="space-y-1">
-          <!-- Populated dynamically from public.profiles -->
-        </div>
+        <div id="dm-users-list" class="space-y-1"></div>
       </div>
 
       <!-- Messages Feed -->
@@ -390,7 +428,6 @@
             onchange="handleFileSelect(event)"
           />
 
-          <!-- Paperclip / Attachment Trigger Button -->
           <button 
             type="button" 
             onclick="document.getElementById('chat-file-input').click()" 
@@ -434,6 +471,9 @@
 
   <!-- Application Logic Scripts -->
   <script>
+    // Store loaded news in memory for quick retrieval when viewing details
+    let loadedNewsMap = {};
+
     // --- Image Carousel Logic ---
     let currentSlide = 0;
     const slides = document.querySelectorAll('.carousel-item');
@@ -455,9 +495,7 @@
     document.getElementById('prevBtn')?.addEventListener('click', () => showSlide((currentSlide - 1 + slides.length) % slides.length));
     indicators.forEach((btn, i) => btn.addEventListener('click', () => showSlide(i)));
 
-    // Auto-advance hero carousel every 5 seconds
     setInterval(() => showSlide((currentSlide + 1) % slides.length), 5000);
-
 
     // --- Supabase Config ---
     const supabaseClient = supabase.createClient(
@@ -470,7 +508,6 @@
     let currentUserDept = 'MAIN';
     let currentUserName = 'Staff';
     
-    // Active Room State
     let activeRoomId = BROADCAST_ROOM_ID;
     let activeReceiverId = null;
     let activeChatTitle = 'General Broadcast';
@@ -483,7 +520,6 @@
     let staffProfileMap = {};
     let selectedFile = null;
 
-    // News Section State
     let activeNewsTab = 'internal';
     let userRole = 'staff';
 
@@ -506,6 +542,28 @@
       document.getElementById('news-title-input').value = '';
       document.getElementById('news-summary-input').value = '';
       document.getElementById('news-image-input').value = '';
+    }
+
+    function openViewNewsModal(newsId) {
+      const item = loadedNewsMap[newsId];
+      if (!item) return;
+
+      const defaultImg = item.category === 'internal' 
+        ? 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=600&q=80' 
+        : 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80';
+
+      document.getElementById('view-news-category').innerText = item.category.toUpperCase();
+      document.getElementById('view-news-title').innerText = item.title;
+      document.getElementById('view-news-author').innerText = item.profiles?.name || 'Hospital Admin';
+      document.getElementById('view-news-date').innerText = new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      document.getElementById('view-news-summary').innerText = item.summary;
+      document.getElementById('view-news-image').src = item.image_url || defaultImg;
+
+      document.getElementById('view-news-modal').classList.remove('hidden');
+    }
+
+    function closeViewNewsModal() {
+      document.getElementById('view-news-modal').classList.add('hidden');
     }
 
     function switchNewsTab(category) {
@@ -567,6 +625,10 @@
         return;
       }
 
+      // Populate local memory map for modals
+      loadedNewsMap = {};
+      data.forEach(item => { loadedNewsMap[item.id] = item; });
+
       container.innerHTML = data.map(item => {
         const defaultImg = activeNewsTab === 'internal' 
           ? 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=600&q=80' 
@@ -578,7 +640,7 @@
 
         return `
           <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md">
-            <div class="h-44 w-full bg-slate-100 overflow-hidden relative">
+            <div class="h-44 w-full bg-slate-100 overflow-hidden relative cursor-pointer" onclick="openViewNewsModal('${item.id}')">
               <img src="${escapeHTML(imageSrc)}" alt="Cover" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
               <span class="absolute top-3 left-3 bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
                 ${escapeHTML(item.category)}
@@ -592,17 +654,21 @@
                   <span>•</span>
                   <span><i class="fa-regular fa-user mr-1"></i>${escapeHTML(authorName)}</span>
                 </div>
-                <h3 class="font-bold text-slate-900 text-base mb-2 leading-snug">${escapeHTML(item.title)}</h3>
+                <h3 class="font-bold text-slate-900 text-base mb-2 leading-snug cursor-pointer hover:text-phmc-emerald transition-colors" onclick="openViewNewsModal('${item.id}')">${escapeHTML(item.title)}</h3>
                 <p class="text-slate-600 text-xs leading-relaxed line-clamp-3">${escapeHTML(item.summary)}</p>
               </div>
 
-              ${userRole === 'admin' ? `
-                <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
-                  <button onclick="deleteNewsItem('${item.id}')" class="text-[11px] font-semibold text-rose-600 hover:text-rose-800 flex items-center">
+              <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <button onclick="openViewNewsModal('${item.id}')" class="text-[11px] font-bold text-phmc-emerald hover:text-emerald-700 flex items-center transition-colors">
+                  <i class="fa-solid fa-eye mr-1"></i> See Details
+                </button>
+
+                ${userRole === 'admin' ? `
+                  <button onclick="deleteNewsItem('${item.id}')" class="text-[11px] font-semibold text-rose-600 hover:text-rose-800 flex items-center transition-colors">
                     <i class="fa-solid fa-trash-can mr-1"></i> Delete
                   </button>
-                </div>
-              ` : ''}
+                ` : ''}
+              </div>
             </div>
           </div>
         `;
@@ -658,7 +724,6 @@
       const rawA = sorted[0].replace(/-/g, '');
       const rawB = sorted[1].replace(/-/g, '');
       const combined = (rawA + rawB).slice(0, 32).padEnd(32, '0');
-      
       return `${combined.substring(0,8)}-${combined.substring(8,12)}-4${combined.substring(13,16)}-8${combined.substring(17,20)}-${combined.substring(20,32)}`;
     }
 
@@ -1041,7 +1106,6 @@
 
       await supabaseClient.from('profiles').upsert({ id: user.id, name: currentUserName, department: currentUserDept });
       
-      // Load directory, custom GCs, and initialized News after currentUserId is set
       await loadStaffDirectoryAndCustomGCs();
       await checkUserRoleAndInitNews();
 
@@ -1144,7 +1208,7 @@
       } catch (err) {
         console.error('Error sending message:', err);
         alert('Failed to send attachment: ' + err.message);
-      } finally {
+      } font-medium {
         if (sendBtn) {
           sendBtn.disabled = false;
           sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i>`;
